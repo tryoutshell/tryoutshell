@@ -1,0 +1,39 @@
+{
+  "organizations": [
+    {
+      "id": "in-toto",
+      "name": "In-Toto",
+      "description": "Supply chain integrity",
+      "logo": "🔗",
+      "lessons": ["getting-started", "advanced-policies"]
+    },
+    {
+      "id": "chainguard",
+      "name": "Chainguard",
+      "description": "Supply chain Security",
+      "logo": "🛡️",
+      "lessons": ["getting-started", "cosign-101", "sigstore-101"]
+    },
+    {
+      "id": "witness",
+      "name": "Witness",
+      "description": "Attest and Verify",
+      "logo": "🦉",
+      "lessons": ["getting-started", "signing-attestation-with-sigstore"]
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "description": "Learn something other",
+      "logo": "🧑🏻‍💻",
+      "lessons": ["my-first-lesson"]
+    },
+    {
+      "id": "unstable-inprogress",
+      "name": "Unstable",
+      "description": "Learn something other",
+      "logo": "🦦",
+      "lessons": ["rekor-basic", "verifying-an-artifact-with-a-witness-policy"]
+    }
+  ]
+}

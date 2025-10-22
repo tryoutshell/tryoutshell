@@ -1,0 +1,22 @@
+metadata:
+  id: "my-first-lesson"
+  org: "other"
+  title: "My First Lesson"
+  description: "A simple introduction"
+  difficulty: "beginner"
+  duration: "10 min"
+  tags: ["intro"]
+
+steps:
+  - type: info
+    title: "Welcome"
+    content: "Hello, world!"
+
+  - type: command
+    prompt: "Check your shell"
+    example: "echo 'Hello from TryOutShell'"
+    validation:
+      type: "substring"
+      contains: "Hello"
+    success_msg: "✅ It works!"
+    fail_msg: "❌ Try again"

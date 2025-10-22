@@ -1,0 +1,435 @@
+# lessons/chainguard/cosign-signing.yaml
+
+metadata:
+  id: "cosign-sign-verify"
+  org: "chainguard"
+  title: "Container Image Signing with Cosign"
+  description: "Learn to sign and verify container images for supply chain security"
+  difficulty: "beginner"
+  duration: "20 min"
+  prerequisites:
+    - "Docker installed"
+    - "Basic understanding of containers"
+  tags: ["cosign", "signing", "supply-chain"]
+  author: "Chainguard Team"
+  version: "1.0"
+
+# Introduction section (shown once at start)
+introduction:
+  title: "What You'll Learn"
+  content: |
+    In this lesson, you will:
+    - Understand what Cosign is and why image signing matters
+    - Install and verify Cosign
+    - Sign a container image with ephemeral keys
+    - Verify signatures to ensure image integrity
+    
+    **Time:** ~20 minutes
+    **Tools:** Cosign, Docker
+
+# Main lesson flow
+steps:
+  # === SECTION 1: Understanding Cosign ===
+
+  - type: info
+    title: "What is Cosign?"
+    content: |
+      **Cosign** is a tool for signing and verifying container images and other artifacts.
+      
+      Think of it like a digital signature for software packages - it proves:
+      - **Who** created the image (authenticity)
+      - **What** exact image you're running (integrity)
+      - **When** it was signed (provenance)
+      
+      ### Why Does This Matter?
+      
+      Without signing, you can't be sure that `myapp:latest` hasn't been tampered with
+      between the registry and your production cluster. An attacker could:
+      - Replace your image with malicious code
+      - Inject backdoors during CI/CD
+      - Modify dependencies without detection
+      
+      Cosign prevents this by creating cryptographic signatures that are nearly
+      impossible to forge.
+      
+      > 💡 **Fun Fact**: Cosign is part of the Sigstore project, which also includes
+      > Fulcio (certificate authority) and Rekor (transparency log).
+
+    # Highlight specific terms/commands in the UI
+    highlights:
+      - text: "myapp:latest"
+        style: "code"
+      - text: "Sigstore"
+        style: "bold"
+
+    # Optional: Show a diagram (ASCII art)
+    diagram: |
+      Registry              Cosign                Your Cluster
+      ┌────────┐            ┌──────┐             ┌───────────┐
+      │ Image  │───sign────▶│ .sig │────verify──▶│ ✓ Deploy  │
+      └────────┘            └──────┘             └───────────┘
+
+    # User must explicitly continue (prevents info overload)
+    wait_for_continue: true
+
+  # === SECTION 2: Installation ===
+
+  - type: info
+    title: "Installing Cosign"
+    content: |
+      First, let's check if Cosign is already installed on your system.
+      
+      Try running: `cosign version`
+      
+      If you see version information, you're all set! Otherwise, install it using:
+
+    # Inline command suggestions (rendered as copyable code blocks)
+    code_blocks:
+      - label: "macOS (Homebrew)"
+        code: "brew install cosign"
+        language: "bash"
+
+      - label: "Linux (Binary)"
+        code: |
+          curl -LO https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+          sudo chmod +x /usr/local/bin/cosign
+        language: "bash"
+
+      - label: "Go Install"
+        code: "go install github.com/sigstore/cosign/v2/cmd/cosign@latest"
+        language: "bash"
+
+  - type: command
+    id: "check-cosign"
+    prompt: "Verify Cosign is installed"
+    instruction: "Run the command to check your Cosign version:"
+
+    # Example command (shown to user)
+    example: "cosign version"
+
+    # Validation (flexible matching)
+    validation:
+      type: "regex"
+      pattern: "cosign.*version|GitVersion"
+      case_insensitive: true
+
+    # Multiple validation methods
+    alternative_validations:
+      - type: "exit_code"
+        expected: 0
+      - type: "substring"
+        contains: "cosign"
+
+    success_msg: "✅ Great! Cosign v{version} is installed."
+    fail_msg: "❌ Cosign not found. Please install it using one of the methods above."
+
+    hints:
+      - level: 1
+        text: "Type: cosign version"
+      - level: 2
+        text: "If not installed, use: brew install cosign (macOS) or download from GitHub"
+      - level: 3
+        text: "Still stuck? Check https://docs.sigstore.dev/cosign/installation"
+
+    allow_skip: false
+    timeout: 10  # seconds
+
+  # === SECTION 3: Understanding Signing ===
+
+  - type: info
+    title: "How Signing Works"
+    content: |
+      Cosign uses **public key cryptography** to sign images:
+      
+      1. **Generate a key pair** (public + private)
+         - Private key (secret) → used to sign
+         - Public key → used to verify
+      
+      2. **Sign the image** with your private key
+         - Cosign creates a signature file
+         - Signature is stored alongside the image in the registry
+      
+      3. **Verify** using the public key
+         - Anyone can verify, but only you can sign
+      
+      ### Two Signing Modes:
+      
+      **🔑 Key-based signing** (what we'll use today)
+      - You generate and manage keys
+      - Good for testing and private registries
+      
+      **🎫 Keyless signing** (recommended for production)
+      - Uses OIDC identity (GitHub, Google, etc.)
+      - No keys to manage!
+      - We'll cover this in the advanced lesson
+
+    # Inline callouts
+    callouts:
+      - type: "tip"
+        text: "In production, always use keyless signing with Fulcio"
+      - type: "warning"
+        text: "Never commit private keys to Git!"
+
+    wait_for_continue: true
+
+  # === SECTION 4: Generate Keys (Mixed Info + Command) ===
+
+  - type: command
+    id: "generate-keys"
+    prompt: "Generate a key pair"
+
+    # Contextual explanation before the command
+    pre_content: |
+      Let's generate a test key pair. Cosign will ask you for a password -
+      use something simple like `test123` (this is just for learning).
+
+    example: "cosign generate-key-pair"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "cosign.key"
+        - "cosign.pub"
+
+    # Explain what happened after success
+    post_content: |
+      You should now see two files:
+      - `cosign.key` - Your **private** key (keep secret!)
+      - `cosign.pub` - Your **public** key (share freely)
+      
+      The private key is encrypted with the password you chose.
+
+    success_msg: "✅ Key pair generated successfully!"
+    fail_msg: "❌ Key generation failed. Check if you're in a writable directory."
+
+    allow_skip: false
+
+  # === SECTION 5: Signing an Image ===
+
+  - type: info
+    title: "Time to Sign!"
+    content: |
+      Now we'll sign an actual container image. We'll use a public test image
+      from Google's container registry.
+      
+      The command structure is:
+      ```
+      cosign sign --key <private-key> <image>
+      ```
+
+      Cosign will:
+        1. Hash the image layers
+        2. Create a signature using your private key
+        3. Upload the signature to the registry (as `<image>.sig`)
+
+  - type: command
+    id: "sign-image"
+    prompt: "Sign a container image"
+
+    pre_content: |
+      Let's sign the `gcr.io/distroless/static:latest` image.
+      
+      You'll be prompted for your key password (the one you set earlier).
+
+    example: "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+
+    # Allow variations
+    accepted_commands:
+      - "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+      - "cosign sign --key cosign.key gcr.io/distroless/static"
+      - "cosign sign --key ./cosign.key gcr.io/distroless/static:latest"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "Pushing signature to"
+        - "Successfully signed"
+      any_match: true  # Match any of the patterns
+
+    post_content: |
+      🎉 **Image signed!** The signature is now stored in the registry.
+      
+      Notice the output shows where the signature was pushed. Cosign stores
+      signatures as OCI artifacts alongside the original image.
+
+    success_msg: "✅ Image signed successfully!"
+    fail_msg: "❌ Signing failed. Did you enter the correct password?"
+
+    hints:
+      - level: 1
+        text: "Make sure to include --key cosign.key"
+      - level: 2
+        text: "Enter the password you set during key generation"
+      - level: 3
+        text: "Full command: cosign sign --key cosign.key gcr.io/distroless/static:latest"
+
+    timeout: 60
+    allow_skip: false
+
+  # === SECTION 6: Verification ===
+
+  - type: info
+    title: "Verifying Signatures"
+    content: |
+      Now let's verify that our signature is valid. Anyone with the **public key**
+      can verify the signature, but only you (with the private key) can create it.
+      
+      This is the magic of public key cryptography! 🔐
+
+  - type: command
+    id: "verify-image"
+    prompt: "Verify the signed image"
+
+    example: "cosign verify --key cosign.pub gcr.io/distroless/static:latest"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "Verification for"
+        - "successfully verified"
+      all_match: false
+
+    post_content: |
+      ✨ Verification successful! This proves:
+      - The image hasn't been modified
+      - It was signed by your private key
+      - The signature is valid
+      
+      In production, you'd verify images before deploying them to Kubernetes
+      using admission controllers like Kyverno or OPA Gatekeeper.
+
+    success_msg: "✅ Signature verified!"
+    fail_msg: "❌ Verification failed."
+
+    allow_skip: false
+
+  # === SECTION 7: Knowledge Check (Quiz) ===
+
+  - type: quiz
+    title: "Quick Knowledge Check"
+    questions:
+      - id: "q1"
+        question: "What does Cosign use to sign container images?"
+        type: "multiple_choice"
+        options:
+          - "Passwords"
+          - "Public key cryptography"
+          - "OAuth tokens"
+          - "SSH keys"
+        answer: 1
+        explanation: |
+          Cosign uses **public key cryptography** (key pairs or keyless OIDC).
+          The private key signs, and the public key verifies.
+
+      - id: "q2"
+        question: "Which key should you NEVER share publicly?"
+        type: "multiple_choice"
+        options:
+          - "cosign.pub (public key)"
+          - "cosign.key (private key)"
+          - "Both"
+          - "Neither"
+        answer: 1
+        explanation: |
+          The **private key** (cosign.key) must remain secret! The public key
+          (cosign.pub) is meant to be shared so others can verify your signatures.
+
+      - id: "q3"
+        question: "Where are Cosign signatures stored?"
+        type: "multiple_choice"
+        options:
+          - "In a separate database"
+          - "Inside the container image"
+          - "As OCI artifacts in the same registry"
+          - "On your local disk only"
+        answer: 2
+        explanation: |
+          Signatures are stored as **OCI artifacts** in the same container registry,
+          tagged with a .sig suffix. This keeps signatures close to the images.
+
+  # === SECTION 8: Final Challenge ===
+
+  - type: challenge
+    title: "🚀 Final Challenge: Sign Your Own Image"
+    description: |
+      Now it's your turn! Sign a different image of your choice and verify it.
+      
+      **Your task:**
+      1. Pick any public image (e.g., `nginx:latest`, `alpine:latest`)
+      2. Sign it with your key pair
+      3. Verify the signature
+      4. Save the verification output to a file called `verification-result.txt`
+      
+      **Bonus:** Try signing a local image you've built with Docker!
+
+    # Open-ended verification
+    verification:
+      type: "custom"
+      checks:
+        - type: "file_exists"
+          path: "verification-result.txt"
+        - type: "file_contains"
+          path: "verification-result.txt"
+          pattern: "successfully verified"
+
+    hints:
+      - level: 1
+        text: "Use the same commands as before, just change the image name"
+      - level: 2
+        text: "Redirect output with: cosign verify --key cosign.pub <image> > verification-result.txt"
+      - level: 3
+        text: |
+          Example:
+          cosign sign --key cosign.key nginx:latest
+          cosign verify --key cosign.pub nginx:latest > verification-result.txt
+
+    success_msg: "🎉 Challenge complete! You've mastered the basics of Cosign!"
+
+    allow_skip: true
+
+  # === SECTION 9: Interview Questions ===
+
+  - type: interview_prep
+    title: "Interview Questions"
+    description: |
+      Practice these questions to reinforce your learning:
+
+    questions:
+      - "Explain how Cosign ensures container image integrity."
+      - "What's the difference between key-based and keyless signing?"
+      - "How would you integrate Cosign into a CI/CD pipeline?"
+      - "What are the security risks if you lose your private key?"
+      - "How does Cosign integrate with Kubernetes admission controllers?"
+
+    # User can optionally record their answers
+    record_answers: true
+    export_format: "json"  # Answers saved to ~/.tryoutshell/answers/chainguard/cosign-sign-verify.json
+
+  # Post-lesson summary
+conclusion:
+    title: "What's Next?"
+    content: |
+      🎓 **Congratulations!** You've learned:
+      - What Cosign is and why signing matters
+      - How to generate key pairs
+      - How to sign and verify container images
+      - Best practices for supply chain security
+      
+      ### Next Steps:
+      - Try the **Keyless Signing** lesson
+      - Explore **Cosign with Kubernetes** (admission policies)
+      - Learn about **Rekor transparency logs**
+      
+      ### Additional Resources:
+      - [Cosign Documentation](https://docs.sigstore.dev)
+      - [Sigstore Blog](https://blog.sigstore.dev)
+      - [Chainguard Academy](https://edu.chainguard.dev)
+
+    badges:
+      - id: "cosign-basics"
+        name: "Cosign Fundamentals"
+        icon: "🔐"
+      - id: "first-signer"
+        name: "First Signature"
+        icon: "✍️"
