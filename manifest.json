@@ -12,7 +12,7 @@
       "name": "Chainguard",
       "description": "Supply chain Security",
       "logo": "🛡️",
-      "lessons": ["getting-started", "cosign-101", "sigstore-101"]
+      "lessons": ["cosign-sign-verify","getting-started", "cosign-101", "sigstore-101"]
     },
     {
       "id": "witness",
