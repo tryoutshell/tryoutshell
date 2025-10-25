@@ -48,11 +48,18 @@ type StepType struct {
 	Callouts               []CalloutType    `yaml:"callouts"`
 	Diagram                string           `yaml:"diagram"`
 	WaitForContinue        bool             `yaml:"wait_for_continue"`
-	Questions              []QuestionType   `yaml:"questions"`
-	Description            string           `yaml:"description"`
-	Verification           VerificationType `yaml:"verification"`
-	RecordAnswers          bool             `yaml:"record_answers"`
-	ExportFormat           string           `yaml:"export_format"`
+
+	// For quiz step
+	Questions []QuestionType `yaml:"questions"`
+
+	// For challenge step
+	Description  string           `yaml:"description"`
+	Verification VerificationType `yaml:"verification"`
+
+	// For interview_prep step
+	InterviewQuestions []string `yaml:"-"` // Parsed separately
+	RecordAnswers      bool     `yaml:"record_answers"`
+	ExportFormat       string   `yaml:"export_format"`
 }
 
 type ValidationType struct {
@@ -129,4 +136,42 @@ type BadgeType struct {
 	ID   string `yaml:"id"`
 	Name string `yaml:"name"`
 	Icon string `yaml:"icon"`
+}
+
+// Custom unmarshaler to handle interview questions as strings
+func (s *StepType) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type rawStep StepType
+	raw := rawStep{}
+
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	*s = StepType(raw)
+
+	// Handle interview_prep questions (can be simple strings)
+	if s.Type == "interview_prep" {
+		var questions interface{}
+		type tempStep struct {
+			Questions interface{} `yaml:"questions"`
+		}
+		temp := tempStep{}
+		if err := unmarshal(&temp); err == nil {
+			questions = temp.Questions
+
+			// Check if questions are strings
+			if qSlice, ok := questions.([]interface{}); ok {
+				for _, q := range qSlice {
+					if qStr, ok := q.(string); ok {
+						s.InterviewQuestions = append(s.InterviewQuestions, qStr)
+						s.Questions = append(s.Questions, QuestionType{
+							Question: qStr,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }

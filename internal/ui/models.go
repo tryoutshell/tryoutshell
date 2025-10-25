@@ -2,13 +2,59 @@ package ui
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	lessons_pkg "github.com/tryoutshell/tryoutshell/internal/lessons"
 	"github.com/tryoutshell/tryoutshell/internal/runner"
-	"time"
 )
+
+// Key bindings
+type keyMap struct {
+	Up    key.Binding
+	Down  key.Binding
+	Enter key.Binding
+	Quit  key.Binding
+	Esc   key.Binding
+	Help  key.Binding
+	Skip  key.Binding
+}
+
+var keys = keyMap{
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "scroll up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "scroll down"),
+	),
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "continue/execute"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
+	),
+	Esc: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "hint"),
+	),
+	Skip: key.NewBinding(
+		key.WithKeys("ctrl+y"),
+		key.WithHelp("ctrl+y", "skip"),
+	),
+}
 
 // AppState represents different screens
 type AppState int
@@ -48,6 +94,11 @@ type Model struct {
 	viewport  viewport.Model
 	styles    *Styles
 
+	// Quiz state
+	quizAnswers    map[string]int
+	currentQuizQ   int
+	selectedOption int
+
 	// Command execution
 	commandOutput string
 	lastError     error
@@ -60,31 +111,37 @@ type Model struct {
 	// Flags
 	ready    bool
 	quitting bool
-	runner   *runner.Runner
+
+	// Runner
+	runner *runner.Runner
 }
 
 // NewModel creates a new model
 func NewModel(orgID, lessonID string, lesson lessons_pkg.LessonFormat) Model {
 	ti := textinput.New()
-	ti.Placeholder = "Type your command here..."
+	ti.Placeholder = "Type command or ':skip' to skip..."
 	ti.Focus()
-	ti.CharLimit = 256
+	ti.CharLimit = 512
 	ti.Width = 80
+	ti.Prompt = ""                          // We handle prompt in rendering
+	ti.SetCursorMode(textinput.CursorBlink) // Make cursor blink for visibility
 
 	theme := GetTheme("default")
 	styles := NewStyles(theme)
 
 	return Model{
-		state:       StateIntroduction,
-		currentStep: 0,
-		totalSteps:  len(lesson.Steps),
-		lesson:      lesson,
-		orgID:       orgID,
-		lessonID:    lessonID,
-		textInput:   ti,
-		styles:      styles,
-		stepState:   StepPending,
-		runner:      runner.NewRunner(),
+		state:          StateIntroduction,
+		currentStep:    0,
+		totalSteps:     len(lesson.Steps),
+		lesson:         lesson,
+		orgID:          orgID,
+		lessonID:       lessonID,
+		textInput:      ti,
+		styles:         styles,
+		stepState:      StepPending,
+		quizAnswers:    make(map[string]int),
+		selectedOption: 0,
+		runner:         runner.NewRunner(),
 	}
 }
 
@@ -95,50 +152,167 @@ func (m Model) Init() tea.Cmd {
 
 // Update handles messages
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
+		// Get current step info
+		var currentStepType string
+		var isCommandInputActive bool
+
+		if m.state == StateLesson && m.currentStep < len(m.lesson.Steps) {
+			currentStepType = m.lesson.Steps[m.currentStep].Type
+			isCommandInputActive = currentStepType == "command" &&
+				(m.stepState == StepPending || m.stepState == StepFailed)
+		}
+
+		// Global keys that work everywhere
+		if key.Matches(msg, keys.Quit) {
 			m.quitting = true
 			return m, tea.Quit
+		}
 
-		case "enter":
-			return m.handleEnter()
+		// Special handling for quiz steps
+		if currentStepType == "quiz" {
+			switch msg.String() {
+			case "q", "ctrl+c":
+				m.quitting = true
+				return m, tea.Quit
 
-		case "esc":
-			return m.handleEscape()
+			case "enter":
+				return m.handleEnter()
 
-		case "?":
-			return m.handleHintRequest()
+			case "esc":
+				return m.handleEscape()
 
-		default:
-			// Update text input for command steps
-			if m.state == StateLesson &&
-				m.lesson.Steps[m.currentStep].Type == "command" {
+			case "up", "k":
+				// Quiz navigation
+				if m.selectedOption > 0 {
+					m.selectedOption--
+					m.updateViewportContent()
+				}
+				return m, nil
+
+			case "down", "j":
+				// Quiz navigation
+				step := m.lesson.Steps[m.currentStep]
+				if m.currentQuizQ < len(step.Questions) &&
+					m.selectedOption < len(step.Questions[m.currentQuizQ].Options)-1 {
+					m.selectedOption++
+					m.updateViewportContent()
+				}
+				return m, nil
+
+			case "ctrl+y":
+				return m.handleSkip()
+
+			default:
+				// Ignore other keys in quiz mode
+				return m, nil
+			}
+		}
+
+		// Special handling for command input (text entry)
+		if isCommandInputActive {
+			switch msg.String() {
+			case "q":
+				// In command input mode, 'q' should be typed, not quit
+				// Only quit with ctrl+c
 				m.textInput, cmd = m.textInput.Update(msg)
+				m.updateViewportContent() // UPDATE VIEWPORT AFTER TYPING
+				return m, cmd
+
+			case "ctrl+c":
+				m.quitting = true
+				return m, tea.Quit
+
+			case "enter":
+				return m.handleEnter()
+
+			case "esc":
+				return m.handleEscape()
+
+			case "ctrl+y":
+				return m.handleSkip()
+
+			case "?":
+				return m.handleHintRequest()
+
+			case "up", "down", "left", "right":
+				// Allow cursor movement in text input
+				m.textInput, cmd = m.textInput.Update(msg)
+				m.updateViewportContent() // UPDATE VIEWPORT AFTER CURSOR MOVE
+				return m, cmd
+
+			default:
+				// Pass all other keys to text input for typing
+				m.textInput, cmd = m.textInput.Update(msg)
+				m.updateViewportContent() // UPDATE VIEWPORT AFTER EVERY KEYSTROKE
 				return m, cmd
 			}
+		}
+
+		// Default key handling for info steps and other content
+		switch {
+		case key.Matches(msg, keys.Enter):
+			return m.handleEnter()
+
+		case key.Matches(msg, keys.Esc):
+			return m.handleEscape()
+
+		case key.Matches(msg, keys.Help):
+			return m.handleHintRequest()
+
+		case key.Matches(msg, keys.Up):
+			m.viewport.LineUp(3)
+			return m, nil
+
+		case key.Matches(msg, keys.Down):
+			m.viewport.LineDown(3)
+			return m, nil
+
+		case key.Matches(msg, keys.Skip):
+			return m.handleSkip()
 		}
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 
+		headerHeight := 3
+		footerHeight := 5
+
 		if !m.ready {
-			m.viewport = viewport.New(msg.Width, msg.Height-10)
+			m.viewport = viewport.New(msg.Width, msg.Height-headerHeight-footerHeight)
+			m.viewport.YPosition = headerHeight
 			m.ready = true
 		} else {
 			m.viewport.Width = msg.Width
-			m.viewport.Height = msg.Height - 10
+			m.viewport.Height = msg.Height - headerHeight - footerHeight
 		}
+
+		m.updateViewportContent()
 
 	case CommandResultMsg:
 		return m.handleCommandResult(msg)
+
+	case AdvanceStepMsg:
+		return m.advanceStep()
 	}
 
-	return m, cmd
+	// Update viewport (but not when typing in text input)
+	if m.state != StateLesson ||
+		m.currentStep >= len(m.lesson.Steps) ||
+		m.lesson.Steps[m.currentStep].Type != "command" ||
+		(m.stepState != StepPending && m.stepState != StepFailed) {
+		m.viewport, cmd = m.viewport.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
 }
 
 // handleEnter processes Enter key
@@ -147,6 +321,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	case StateIntroduction:
 		m.state = StateLesson
 		m.currentStep = 0
+		m.updateViewportContent()
 		return m, nil
 
 	case StateLesson:
@@ -154,33 +329,56 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 
 		switch step.Type {
 		case "info":
-			// Move to next step
-			if m.currentStep < m.totalSteps-1 {
-				m.currentStep++
-				m.stepState = StepPending
-				m.currentHint = 0
-				m.commandOutput = ""
-				m.textInput.Reset()
-			} else {
-				m.state = StateConclusion
-			}
-			return m, nil
+			return m.advanceStep()
 
 		case "command":
-			if m.textInput.Value() != "" {
+			userInput := strings.TrimSpace(m.textInput.Value())
+
+			// Check for skip command
+			if userInput == ":skip" {
+				return m.handleSkip()
+			}
+
+			if userInput != "" && (m.stepState == StepPending || m.stepState == StepFailed) {
 				m.stepState = StepExecuting
-				return m, executeCommand(m.textInput.Value(), step, m.runner)
+				m.updateViewportContent()
+				return m, m.executeCommand(userInput, step)
+			}
+
+			// If already successful, advance
+			if m.stepState == StepSuccess {
+				return m.advanceStep()
 			}
 			return m, nil
 
-		default:
-			// Handle quiz, challenge, etc.
-			if m.currentStep < m.totalSteps-1 {
-				m.currentStep++
-			} else {
-				m.state = StateConclusion
+		case "quiz":
+			// Submit quiz answer
+			if m.currentQuizQ < len(step.Questions) {
+				q := step.Questions[m.currentQuizQ]
+				m.quizAnswers[q.ID] = m.selectedOption
+
+				m.currentQuizQ++
+				m.selectedOption = 0
+
+				// If all questions answered, advance
+				if m.currentQuizQ >= len(step.Questions) {
+					m.currentQuizQ = 0
+					return m.advanceStep()
+				}
+
+				m.updateViewportContent()
 			}
 			return m, nil
+
+		case "challenge":
+			// Verify challenge completion
+			return m.advanceStep()
+
+		case "interview_prep":
+			return m.advanceStep()
+
+		default:
+			return m.advanceStep()
 		}
 
 	case StateConclusion:
@@ -198,9 +396,37 @@ func (m Model) handleEscape() (tea.Model, tea.Cmd) {
 		m.stepState = StepPending
 		m.commandOutput = ""
 		m.currentHint = 0
+		m.currentQuizQ = 0
+		m.selectedOption = 0
 		m.textInput.Reset()
+		m.updateViewportContent()
 	}
 	return m, nil
+}
+
+// handleSkip skips the current step
+func (m Model) handleSkip() (tea.Model, tea.Cmd) {
+	if m.state != StateLesson || m.currentStep >= len(m.lesson.Steps) {
+		return m, nil
+	}
+
+	step := m.lesson.Steps[m.currentStep]
+
+	// Allow skip for command steps (always allow in learning environment)
+	if step.Type == "command" {
+		m.stepState = StepSuccess
+		m.commandOutput = "⏭️  Skipped"
+		m.textInput.SetValue(":skipped")
+		m.updateViewportContent()
+
+		// Show brief message then advance
+		return m, tea.Tick(1*time.Second, func(t time.Time) tea.Msg {
+			return AdvanceStepMsg{}
+		})
+	}
+
+	// For other steps, just advance
+	return m.advanceStep()
 }
 
 // handleHintRequest shows next hint
@@ -210,6 +436,7 @@ func (m Model) handleHintRequest() (tea.Model, tea.Cmd) {
 		if step.Type == "command" && len(step.Hints) > 0 {
 			if m.currentHint < len(step.Hints) {
 				m.currentHint++
+				m.updateViewportContent()
 			}
 		}
 	}
@@ -223,37 +450,139 @@ func (m Model) handleCommandResult(msg CommandResultMsg) (tea.Model, tea.Cmd) {
 
 	if msg.Success {
 		m.stepState = StepSuccess
-		// Auto-advance after short delay (2 seconds)
-		return m, tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
-			return AdvanceStepMsg{}
-		})
 	} else {
 		m.stepState = StepFailed
 	}
 
+	m.updateViewportContent()
 	return m, nil
 }
 
-// View renders the UI
+// advanceStep moves to next step
+func (m Model) advanceStep() (tea.Model, tea.Cmd) {
+	if m.currentStep < m.totalSteps-1 {
+		m.currentStep++
+		m.stepState = StepPending
+		m.commandOutput = ""
+		m.currentHint = 0
+		m.currentQuizQ = 0
+		m.selectedOption = 0
+		m.textInput.Reset()
+		m.viewport.GotoTop()
+		m.updateViewportContent()
+	} else {
+		m.state = StateConclusion
+		m.updateViewportContent()
+	}
+	return m, nil
+}
+
+// updateViewportContent refreshes viewport content
+func (m *Model) updateViewportContent() {
+	if !m.ready {
+		return
+	}
+
+	var content string
+	switch m.state {
+	case StateIntroduction:
+		content = m.renderIntroduction()
+	case StateLesson:
+		content = m.renderLesson()
+	case StateConclusion:
+		content = m.renderConclusion()
+	}
+
+	// // Center content horizontally
+	// lines := strings.Split(content, "\n")
+	// var centeredLines []string
+	// for _, line := range lines {
+	// 	lineWidth := lipgloss.Width(line)
+	// 	if lineWidth < m.width {
+	// 		padding := (m.width - lineWidth) / 2
+	// 		centeredLines = append(centeredLines, strings.Repeat(" ", padding)+line)
+	// 	} else {
+	// 		centeredLines = append(centeredLines, line)
+	// 	}
+	// }
+
+	// m.viewport.SetContent(strings.Join(centeredLines, "\n"))
+	// Don't center - keep natural alignment for better readability
+	m.viewport.SetContent(content)
+}
+
+// Fix the View() method
 func (m Model) View() string {
 	if !m.ready {
 		return "\n  Initializing..."
 	}
 
 	if m.quitting {
-		return "\n  Thanks for using TryOutShell! 👋\n\n"
+		// Fix: Use direct style instead of non-existent method
+		quitStyle := lipgloss.NewStyle().Foreground(m.styles.Theme.Success).Bold(true)
+		return quitStyle.Render("\n  Thanks for using TryOutShell! 👋\n\n")
 	}
 
-	switch m.state {
-	case StateIntroduction:
-		return m.renderIntroduction()
-	case StateLesson:
-		return m.renderLesson()
-	case StateConclusion:
-		return m.renderConclusion()
+	// Header
+	header := m.renderHeader()
+
+	// Footer with help
+	footer := m.renderFooter()
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		header,
+		m.viewport.View(),
+		footer,
+	)
+}
+
+// renderHeader renders the top header
+func (m Model) renderHeader() string {
+	title := m.styles.AppTitle.Width(m.width).Render(
+		fmt.Sprintf("TryOutShell | %s - %s", m.lesson.Metadata.Org, m.lesson.Metadata.Title),
+	)
+	return title
+}
+
+// renderFooter renders the bottom footer
+// renderFooter renders the bottom footer
+func (m Model) renderFooter() string {
+	step := ""
+	stepState := ""
+
+	if m.state == StateLesson && m.currentStep < len(m.lesson.Steps) {
+		currentStep := m.lesson.Steps[m.currentStep]
+		step = currentStep.Type
+
+		// Debug info (remove after fixing)
+		switch m.stepState {
+		case StepPending:
+			stepState = "PENDING"
+		case StepExecuting:
+			stepState = "EXECUTING"
+		case StepSuccess:
+			stepState = "SUCCESS"
+		case StepFailed:
+			stepState = "FAILED"
+		}
 	}
 
-	return ""
+	help := m.renderHelpText(step)
+	progress := m.renderProgressBar()
+
+	// Debug line (remove after fixing)
+	debug := m.styles.Muted.Render(fmt.Sprintf("  [Debug: State=%v | Step=%s | StepState=%s | QuizQ=%d | QuizOpt=%d]",
+		m.state, step, stepState, m.currentQuizQ, m.selectedOption))
+
+	footerContent := lipgloss.JoinVertical(
+		lipgloss.Left,
+		progress,
+		help,
+		debug, // Remove this line after fixing
+	)
+
+	return m.styles.HelpText.Width(m.width).Render(footerContent)
 }
 
 // Custom messages
@@ -265,17 +594,18 @@ type CommandResultMsg struct {
 
 type AdvanceStepMsg struct{}
 
-// executeCommand runs a shell command (stub for now)
-func executeCommand(cmd string, step lessons_pkg.StepType, r *runner.Runner) tea.Cmd {
+// executeCommand runs a shell command
+func (m Model) executeCommand(cmd string, step lessons_pkg.StepType) tea.Cmd {
 	return func() tea.Msg {
-		// TODO: Implement actual command execution
-		result := r.Execute(cmd, step.Timeout)
+		result := m.runner.Execute(cmd, step.Timeout)
+
 		success := false
-		if result.Error == nil {
-			success = r.Verify(result, step.Validation)
+		if result.Error == nil || result.ExitCode == 0 {
+			success = m.runner.Verify(result, step.Validation)
+
 			if !success && len(step.AlternativeValidations) > 0 {
 				for _, altVal := range step.AlternativeValidations {
-					if r.Verify(result, altVal) {
+					if m.runner.Verify(result, altVal) {
 						success = true
 						break
 					}
@@ -283,15 +613,13 @@ func executeCommand(cmd string, step lessons_pkg.StepType, r *runner.Runner) tea
 			}
 		}
 
-		// For now, simulate success
-		// Format output
-		output := fmt.Sprintf("$ %s\n\n%s\n\n⏱ Completed in %.1fs",
+		output := fmt.Sprintf("$ %s\n\n%s\n\n⏱  Completed in %.2fs",
 			cmd,
 			result.Output,
 			result.Duration.Seconds(),
 		)
 
-		if result.Error != nil {
+		if result.Error != nil && result.ExitCode != 0 {
 			output += fmt.Sprintf("\n\nExit code: %d", result.ExitCode)
 		}
 

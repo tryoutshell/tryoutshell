@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	lessons_pkg "github.com/tryoutshell/tryoutshell/internal/lessons"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -20,13 +21,21 @@ type CommandResult struct {
 
 type Runner struct {
 	dangerousPatterns []*regexp.Regexp
+	workingDir        string
 }
 
 func NewRunner() *Runner {
+	// Get current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "."
+	}
+
 	return &Runner{
+		workingDir: cwd,
 		dangerousPatterns: []*regexp.Regexp{
 			regexp.MustCompile(`\bsudo\b`),
-			regexp.MustCompile(`\brm\s+-rf\b`),
+			regexp.MustCompile(`\brm\s+-rf\s+/`), // Only block rm -rf /
 			regexp.MustCompile(`\bchmod\s+777\b`),
 			regexp.MustCompile(`>\s*/dev/sd[a-z]`),
 			regexp.MustCompile(`curl.*\|.*sh`),
@@ -43,8 +52,10 @@ func (r *Runner) Execute(command string, timeout int) CommandResult {
 	// Safety check
 	if r.isDangerous(command) {
 		return CommandResult{
-			Error:    fmt.Errorf("command blocked for safety reasons"),
+			Output:   "Command blocked for security reasons",
+			Error:    fmt.Errorf("command blocked for safety"),
 			Duration: time.Since(start),
+			ExitCode: 1,
 		}
 	}
 
@@ -56,8 +67,9 @@ func (r *Runner) Execute(command string, timeout int) CommandResult {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	// Execute command
+	// Execute command in working directory
 	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd.Dir = r.workingDir
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -68,13 +80,18 @@ func (r *Runner) Execute(command string, timeout int) CommandResult {
 	// Combine output
 	output := stdout.String()
 	if stderr.Len() > 0 {
-		output += "\n" + stderr.String()
+		if output != "" {
+			output += "\n"
+		}
+		output += stderr.String()
 	}
 
 	exitCode := 0
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = 1
 		}
 	}
 
@@ -94,7 +111,10 @@ func (r *Runner) Verify(result CommandResult, validation lessons_pkg.ValidationT
 		if validation.CaseInsensitive {
 			pattern = "(?i)" + pattern
 		}
-		re := regexp.MustCompile(pattern)
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return false
+		}
 		return re.MatchString(result.Output)
 
 	case "substring":
@@ -109,20 +129,34 @@ func (r *Runner) Verify(result CommandResult, validation lessons_pkg.ValidationT
 	case "exit_code":
 		return result.ExitCode == validation.Expected
 
-	case "output_contains":
-		for _, pattern := range validation.Patterns {
-			matched := strings.Contains(result.Output, pattern)
-			if validation.AnyMatch && matched {
-				return true // Match any pattern
-			}
-			if validation.AllMatch && !matched {
-				return false // Must match all patterns
+	case "file_exists":
+		for _, file := range validation.Files {
+			if _, err := os.Stat(file); os.IsNotExist(err) {
+				return false
 			}
 		}
-		return validation.AllMatch // All matched if we got here
+		return true
+
+	case "output_contains":
+		matchCount := 0
+		for _, pattern := range validation.Patterns {
+			if strings.Contains(result.Output, pattern) {
+				matchCount++
+				if validation.AnyMatch {
+					return true // Match any pattern
+				}
+			}
+		}
+
+		if validation.AllMatch {
+			return matchCount == len(validation.Patterns)
+		}
+
+		return matchCount > 0
 
 	default:
-		return false
+		// If no validation type specified, consider success if exit code is 0
+		return result.ExitCode == 0
 	}
 }
 

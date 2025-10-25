@@ -17,11 +17,11 @@ func LaunchInteractive(orgID, lessonID string) error {
 	// Create model
 	m := NewModel(orgID, lessonID, lesson)
 
-	// Create program
+	// Create program with proper mouse support
 	p := tea.NewProgram(
 		m,
 		tea.WithAltScreen(),       // Use alternate screen buffer
-		tea.WithMouseCellMotion(), // Enable mouse support
+		tea.WithMouseCellMotion(), // Enable mouse motion events
 	)
 
 	// Run the program

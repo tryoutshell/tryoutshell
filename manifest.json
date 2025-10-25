@@ -8,6 +8,13 @@
       "lessons": ["getting-started", "advanced-policies"]
     },
     {
+      "id": "sigstore",
+      "name": "sigstore",
+      "description": "Supply chain Security",
+      "logo": "🛡️",
+      "lessons": ["cosign-sign-verify","getting-started", "cosign-101", "sigstore-101"]
+    },
+    {
       "id": "chainguard",
       "name": "Chainguard",
       "description": "Supply chain Security",
