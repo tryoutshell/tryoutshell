@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/tryoutshell/tryoutshell/internal/ui"
 	"github.com/tryoutshell/tryoutshell/types"
@@ -17,28 +16,30 @@ var listCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		orgList := getOrganizationList()
 
-		// Launch interactive TUI
-		m := ui.NewListModel(orgList)
-		p := tea.NewProgram(
-			m,
-			tea.WithAltScreen(),
-		)
-
-		finalModel, err := p.Run()
-		if err != nil {
-			log.Fatalf("Error: %v", err)
+		// Show org selection
+		selectedOrg := selectOrganization(orgList)
+		if selectedOrg == "" {
+			return
 		}
 
-		// Check if user selected a lesson to start
-		if listModel, ok := finalModel.(ui.ListModel); ok {
-			if listModel.ShouldStartLesson() {
-				orgID, lessonID := listModel.GetSelectedLesson()
-
-				// Start the lesson
-				if err := ui.LaunchInteractive(orgID, lessonID); err != nil {
-					log.Fatalf("Error launching lesson: %v", err)
-				}
+		// Get org details
+		var orgDetail types.OrganizationDetails
+		for _, org := range orgList {
+			if org.Id == selectedOrg {
+				orgDetail = org
+				break
 			}
+		}
+
+		// Show lesson selection
+		selectedLesson := selectLesson(selectedOrg, orgDetail.Name, orgDetail.Lessons)
+		if selectedLesson == "" {
+			return
+		}
+
+		// Start the lesson
+		if err := ui.LaunchInteractive(selectedOrg, selectedLesson); err != nil {
+			log.Fatalf("Error launching lesson: %v", err)
 		}
 	},
 }
