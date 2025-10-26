@@ -1,8 +1,8 @@
-# lessons/chainguard/cosign-signing.yaml
+# lessons/sigstore/cosign-sign-verify.yaml
 
 metadata:
   id: "cosign-sign-verify"
-  org: "chainguard"
+  org: "sigstore"
   title: "Container Image Signing with Cosign"
   description: "Learn to sign and verify container images for supply chain security"
   difficulty: "beginner"
@@ -11,7 +11,7 @@ metadata:
     - "Docker installed"
     - "Basic understanding of containers"
   tags: ["cosign", "signing", "supply-chain"]
-  author: "Chainguard Team"
+  author: "By Rahul"
   version: "1.0"
 
 # Introduction section (shown once at start)
@@ -23,7 +23,7 @@ introduction:
     - Install and verify Cosign
     - Sign a container image with ephemeral keys
     - Verify signatures to ensure image integrity
-    
+
     **Time:** ~20 minutes
     **Tools:** Cosign, Docker
 
@@ -35,23 +35,23 @@ steps:
     title: "What is Cosign?"
     content: |
       **Cosign** is a tool for signing and verifying container images and other artifacts.
-      
+
       Think of it like a digital signature for software packages - it proves:
       - **Who** created the image (authenticity)
       - **What** exact image you're running (integrity)
       - **When** it was signed (provenance)
-      
+
       ### Why Does This Matter?
-      
+
       Without signing, you can't be sure that `myapp:latest` hasn't been tampered with
       between the registry and your production cluster. An attacker could:
       - Replace your image with malicious code
       - Inject backdoors during CI/CD
       - Modify dependencies without detection
-      
+
       Cosign prevents this by creating cryptographic signatures that are nearly
       impossible to forge.
-      
+
       > 💡 **Fun Fact**: Cosign is part of the Sigstore project, which also includes
       > Fulcio (certificate authority) and Rekor (transparency log).
 
@@ -61,6 +61,8 @@ steps:
         style: "code"
       - text: "Sigstore"
         style: "bold"
+      - text: "Client"
+        style: "code"
 
     # Optional: Show a diagram (ASCII art)
     diagram: |
@@ -68,6 +70,38 @@ steps:
       ┌────────┐            ┌──────┐             ┌───────────┐
       │ Image  │───sign────▶│ .sig │────verify──▶│ ✓ Deploy  │
       └────────┘            └──────┘             └───────────┘
+
+      +---------------------------------------------------------------+
+      |                           `Client`                            |
+      |---------------------------------------------------------------|
+      |  docker build                                                 |
+      |  docker pull                                                  |
+      |  docker run                                                   |
+      +---------------------------------------------------------------+
+                       |
+                       |  (Docker CLI commands)
+                       v
+      +---------------------------------------------------------------+
+      |                         DOCKER_HOST                           |
+      |---------------------------------------------------------------|
+      |                         Docker Daemon                         |
+      |                                                               |
+      |  +------------------+       +-------------------------------+ |
+      |  |    Containers    |<----->|           Images              | |
+      |  |------------------|       |-------------------------------| |
+      |  |  [Container 1]   |       |  ubuntu:latest                | |
+      |  |  [Container 2]   |       |  redis:latest                 | |
+      |  |  [Container 3]   |       +-------------------------------+ |
+      |  +------------------+                                         |
+      +---------------------------------------------------------------+
+                       |
+                       |  (Pull/Push Images)
+                       v
+      +---------------------------------------------------------------+
+      |                           Registry                            |
+      |---------------------------------------------------------------|
+      |  ubuntu   |  centos   |  redis   |  nginx                     |
+      +---------------------------------------------------------------+
 
     # User must explicitly continue (prevents info overload)
     wait_for_continue: true
@@ -78,9 +112,9 @@ steps:
     title: "Installing Cosign"
     content: |
       First, let's check if Cosign is already installed on your system.
-      
+
       Try running: `cosign version`
-      
+
       If you see version information, you're all set! Otherwise, install it using:
 
     # Inline command suggestions (rendered as copyable code blocks)
@@ -132,8 +166,8 @@ steps:
       - level: 3
         text: "Still stuck? Check https://docs.sigstore.dev/cosign/installation"
 
-    allow_skip: false
-    timeout: 10  # seconds
+    allow_skip: true
+    timeout: 10 # seconds
 
   # === SECTION 3: Understanding Signing ===
 
@@ -141,24 +175,24 @@ steps:
     title: "How Signing Works"
     content: |
       Cosign uses **public key cryptography** to sign images:
-      
+
       1. **Generate a key pair** (public + private)
          - Private key (secret) → used to sign
          - Public key → used to verify
-      
+
       2. **Sign the image** with your private key
          - Cosign creates a signature file
          - Signature is stored alongside the image in the registry
-      
+
       3. **Verify** using the public key
          - Anyone can verify, but only you can sign
-      
+
       ### Two Signing Modes:
-      
+
       **🔑 Key-based signing** (what we'll use today)
       - You generate and manage keys
       - Good for testing and private registries
-      
+
       **🎫 Keyless signing** (recommended for production)
       - Uses OIDC identity (GitHub, Google, etc.)
       - No keys to manage!
@@ -177,14 +211,15 @@ steps:
 
   - type: command
     id: "generate-keys"
-    prompt: "Generate a key pair"
+    prompt:
+      "Generate a key pair"
 
-    # Contextual explanation before the command
+      # Contextual explanation before the command
     pre_content: |
       Let's generate a test key pair. Cosign will ask you for a password -
       use something simple like `test123` (this is just for learning).
 
-    example: "cosign generate-key-pair"
+    example: "COSIGN_PASSWORD=test123 cosign generate-key-pair"
 
     validation:
       type: "file_exists"
@@ -192,18 +227,18 @@ steps:
         - "cosign.key"
         - "cosign.pub"
 
-    # Explain what happened after success
+      # Explain what happened after success
     post_content: |
       You should now see two files:
       - `cosign.key` - Your **private** key (keep secret!)
       - `cosign.pub` - Your **public** key (share freely)
-      
+
       The private key is encrypted with the password you chose.
 
     success_msg: "✅ Key pair generated successfully!"
     fail_msg: "❌ Key generation failed. Check if you're in a writable directory."
 
-    allow_skip: false
+    allow_skip: true
 
   # === SECTION 5: Signing an Image ===
 
@@ -212,7 +247,7 @@ steps:
     content: |
       Now we'll sign an actual container image. We'll use a public test image
       from Google's container registry.
-      
+
       The command structure is:
       ```
       cosign sign --key <private-key> <image>
@@ -224,48 +259,158 @@ steps:
         3. Upload the signature to the registry (as `<image>.sig`)
 
   - type: command
-    id: "sign-image"
-    prompt: "Sign a container image"
+    id: "create-artifact"
+    prompt: "Create a file to sign"
 
     pre_content: |
-      Let's sign the `gcr.io/distroless/static:latest` image.
-      
-      You'll be prompted for your key password (the one you set earlier).
+      Instead of signing a container image (which requires registry access),
+      let's sign a file. This demonstrates the same cryptographic concepts!
 
-    example: "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+      First, let's create a sample artifact that represents a release binary.
 
-    # Allow variations
+    example: "echo 'MyApp v1.0.0 - Production Release' > myapp-release.txt"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "myapp-release.txt"
+
+    post_content: |
+      ✅ Artifact created! In real-world scenarios, this could be:
+      - A compiled binary
+      - A release tarball
+      - A configuration file
+      - Any file you want to ensure integrity of
+
+    timeout: 10
+    allow_skip: false
+
+  - type: command
+    id: "sign-artifact"
+    prompt: "Sign the artifact"
+
+    pre_content: |
+      Now let's sign our artifact using the private key we generated.
+      This creates a cryptographic signature that proves:
+      1. You created this file
+      2. The file hasn't been tampered with
+
+    example: "cosign sign-blob --key cosign.key myapp-release.txt > myapp-release.txt.sig"
+
     accepted_commands:
-      - "cosign sign --key cosign.key gcr.io/distroless/static:latest"
-      - "cosign sign --key cosign.key gcr.io/distroless/static"
-      - "cosign sign --key ./cosign.key gcr.io/distroless/static:latest"
+      - "cosign sign-blob --key cosign.key myapp-release.txt > myapp-release.txt.sig"
+      - "cosign sign-blob --key ./cosign.key myapp-release.txt > myapp-release.txt.sig"
+      - "cosign sign-blob --key cosign.key myapp-release.txt"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "myapp-release.txt.sig"
+
+    alternative_validations:
+      - type: "output_contains"
+        patterns:
+          - "MEU" # Signature starts with MEU in base64
+          - "MEY" # Or MEY
+        any_match: true
+
+    post_content: |
+      🎉 **Artifact signed!** The signature is now in myapp-release.txt.sig
+
+      This signature file can be distributed alongside your artifact.
+      Anyone with your public key can verify it came from you.
+
+    success_msg: "✅ Artifact signed successfully!"
+    fail_msg: "❌ Signing failed. Check that cosign.key exists."
+
+    hints:
+      - level: 1
+        text: "Use: cosign sign-blob --key cosign.key <filename>"
+      - level: 2
+        text: "Redirect output to a .sig file using >"
+      - level: 3
+        text: "Full command: cosign sign-blob --key cosign.key myapp-release.txt > myapp-release.txt.sig"
+
+    timeout: 30
+    allow_skip: true
+
+  - type: command
+    id: "verify-signature"
+    prompt: "Verify the signature"
+
+    pre_content: |
+      Now let's verify the signature using the PUBLIC key.
+      This proves that the file hasn't been modified since signing.
+
+    example: "cosign verify-blob --key cosign.pub --signature myapp-release.txt.sig myapp-release.txt"
+
+    accepted_commands:
+      - "cosign verify-blob --key cosign.pub --signature myapp-release.txt.sig myapp-release.txt"
+      - "cosign verify-blob --key ./cosign.pub --signature myapp-release.txt.sig myapp-release.txt"
 
     validation:
       type: "output_contains"
       patterns:
-        - "Pushing signature to"
-        - "Successfully signed"
-      any_match: true  # Match any of the patterns
+        - "Verified OK"
+      any_match: false
 
     post_content: |
-      🎉 **Image signed!** The signature is now stored in the registry.
-      
-      Notice the output shows where the signature was pushed. Cosign stores
-      signatures as OCI artifacts alongside the original image.
+      ✅ **Signature verified!**
 
-    success_msg: "✅ Image signed successfully!"
-    fail_msg: "❌ Signing failed. Did you enter the correct password?"
+      The "Verified OK" message confirms:
+      - The file was signed with the private key
+      - The file hasn't been modified since signing
+      - The signature is cryptographically valid
 
-    hints:
-      - level: 1
-        text: "Make sure to include --key cosign.key"
-      - level: 2
-        text: "Enter the password you set during key generation"
-      - level: 3
-        text: "Full command: cosign sign --key cosign.key gcr.io/distroless/static:latest"
+    success_msg: "✅ Signature verification successful!"
+    fail_msg: "❌ Verification failed. Make sure the signature file exists."
 
-    timeout: 60
-    allow_skip: false
+    timeout: 20
+    allow_skip: true
+  #  - type: command
+  #    id: "sign-image"
+  #    prompt: "Sign a container image"
+  #
+  #    pre_content: |
+  #      Let's sign the `gcr.io/distroless/static:latest` image.
+  #
+  #      You'll be prompted for your key password (the one you set earlier).
+  #
+  #    example:
+  #      "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+  #
+  #      # Allow variations
+  #    accepted_commands:
+  #      - "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+  #      - "cosign sign --key cosign.key gcr.io/distroless/static"
+  #      - "cosign sign --key ./cosign.key gcr.io/distroless/static:latest"
+  #
+  #    validation:
+  #      type: "output_contains"
+  #      patterns:
+  #        - "Pushing signature to"
+  #        - "Successfully signed"
+  #      any_match: true # Match any of the patterns
+  #
+  #    post_content: |
+  #      🎉 **Image signed!** The signature is now stored in the registry.
+  #
+  #      Notice the output shows where the signature was pushed. Cosign stores
+  #      signatures as OCI artifacts alongside the original image.
+  #
+  #    success_msg: "✅ Image signed successfully!"
+  #    fail_msg: "❌ Signing failed. Did you enter the correct password?"
+  #
+  #    hints:
+  #      - level: 1
+  #        text: "Make sure to include --key cosign.key"
+  #      - level: 2
+  #        text: "Enter the password you set during key generation"
+  #      - level: 3
+  #        text: "Full command: cosign sign --key cosign.key gcr.io/distroless/static:latest"
+  #
+  #    timeout: 60
+  #    allow_skip: true
 
   # === SECTION 6: Verification ===
 
@@ -274,7 +419,7 @@ steps:
     content: |
       Now let's verify that our signature is valid. Anyone with the **public key**
       can verify the signature, but only you (with the private key) can create it.
-      
+
       This is the magic of public key cryptography! 🔐
 
   - type: command
@@ -295,14 +440,14 @@ steps:
       - The image hasn't been modified
       - It was signed by your private key
       - The signature is valid
-      
+
       In production, you'd verify images before deploying them to Kubernetes
       using admission controllers like Kyverno or OPA Gatekeeper.
 
     success_msg: "✅ Signature verified!"
     fail_msg: "❌ Verification failed."
 
-    allow_skip: false
+    allow_skip: true
 
   # === SECTION 7: Knowledge Check (Quiz) ===
 
@@ -354,13 +499,13 @@ steps:
     title: "🚀 Final Challenge: Sign Your Own Image"
     description: |
       Now it's your turn! Sign a different image of your choice and verify it.
-      
+
       **Your task:**
       1. Pick any public image (e.g., `nginx:latest`, `alpine:latest`)
       2. Sign it with your key pair
       3. Verify the signature
       4. Save the verification output to a file called `verification-result.txt`
-      
+
       **Bonus:** Try signing a local image you've built with Docker!
 
     # Open-ended verification
@@ -390,46 +535,46 @@ steps:
 
   # === SECTION 9: Interview Questions ===
 
-  - type: interview_prep
-    title: "Interview Questions"
-    description: |
-      Practice these questions to reinforce your learning:
+#  - type: interview_prep
+#    title: "Interview Questions"
+#    description: |
+#      Practice these questions to reinforce your learning:
+#
+#    questions:
+#      - "Explain how Cosign ensures container image integrity."
+#      - "What's the difference between key-based and keyless signing?"
+#      - "How would you integrate Cosign into a CI/CD pipeline?"
+#      - "What are the security risks if you lose your private key?"
+#      - "How does Cosign integrate with Kubernetes admission controllers?"
+#
+#    # User can optionally record their answers
+#    record_answers: true
+#    export_format: "json"  # Answers saved to ~/.tryoutshell/answers/sigstore/cosign-sign-verify.json
 
-    questions:
-      - "Explain how Cosign ensures container image integrity."
-      - "What's the difference between key-based and keyless signing?"
-      - "How would you integrate Cosign into a CI/CD pipeline?"
-      - "What are the security risks if you lose your private key?"
-      - "How does Cosign integrate with Kubernetes admission controllers?"
-
-    # User can optionally record their answers
-    record_answers: true
-    export_format: "json"  # Answers saved to ~/.tryoutshell/answers/chainguard/cosign-sign-verify.json
-
-  # Post-lesson summary
+# Post-lesson summary
 conclusion:
-    title: "What's Next?"
-    content: |
-      🎓 **Congratulations!** You've learned:
-      - What Cosign is and why signing matters
-      - How to generate key pairs
-      - How to sign and verify container images
-      - Best practices for supply chain security
-      
-      ### Next Steps:
-      - Try the **Keyless Signing** lesson
-      - Explore **Cosign with Kubernetes** (admission policies)
-      - Learn about **Rekor transparency logs**
-      
-      ### Additional Resources:
-      - [Cosign Documentation](https://docs.sigstore.dev)
-      - [Sigstore Blog](https://blog.sigstore.dev)
-      - [Chainguard Academy](https://edu.chainguard.dev)
+  title: "What's Next?"
+  content: |
+    🎓 **Congratulations!** You've learned:
+    - What Cosign is and why signing matters
+    - How to generate key pairs
+    - How to sign and verify container images
+    - Best practices for supply chain security
 
-    badges:
-      - id: "cosign-basics"
-        name: "Cosign Fundamentals"
-        icon: "🔐"
-      - id: "first-signer"
-        name: "First Signature"
-        icon: "✍️"
+    ### Next Steps:
+    - Try the **Keyless Signing** lesson
+    - Explore **Cosign with Kubernetes** (admission policies)
+    - Learn about **Rekor transparency logs**
+
+    ### Additional Resources:
+    - [Cosign Documentation](https://docs.sigstore.dev)
+    - [Sigstore Blog](https://blog.sigstore.dev)
+    - [Chainguard Academy](https://edu.chainguard.dev)
+
+  badges:
+    - id: "cosign-basics"
+      name: "Cosign Fundamentals"
+      icon: "🔐"
+    - id: "first-signer"
+      name: "First Signature"
+      icon: "✍️"
