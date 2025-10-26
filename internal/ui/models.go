@@ -451,7 +451,7 @@ func (m Model) handleSkip() (tea.Model, tea.Cmd) {
 	// Allow skip for command steps (always allow in learning environment)
 	if step.Type == "command" {
 		m.stepState = StepSuccess
-		m.commandOutput = "⏭️  Skipped"
+		m.commandOutput = "⏭️Skipped"
 		m.textInput.SetValue(":skipped")
 		m.updateViewportContent()
 

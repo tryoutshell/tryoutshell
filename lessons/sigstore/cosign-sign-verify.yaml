@@ -61,6 +61,8 @@ steps:
         style: "code"
       - text: "Sigstore"
         style: "bold"
+      - text: "Client"
+        style: "code"
 
     # Optional: Show a diagram (ASCII art)
     diagram: |
@@ -68,6 +70,38 @@ steps:
       ┌────────┐            ┌──────┐             ┌───────────┐
       │ Image  │───sign────▶│ .sig │────verify──▶│ ✓ Deploy  │
       └────────┘            └──────┘             └───────────┘
+
+      +---------------------------------------------------------------+
+      |                           `Client`                            |
+      |---------------------------------------------------------------|
+      |  docker build                                                 |
+      |  docker pull                                                  |
+      |  docker run                                                   |
+      +---------------------------------------------------------------+
+                       |
+                       |  (Docker CLI commands)
+                       v
+      +---------------------------------------------------------------+
+      |                         DOCKER_HOST                           |
+      |---------------------------------------------------------------|
+      |                         Docker Daemon                         |
+      |                                                               |
+      |  +------------------+       +-------------------------------+ |
+      |  |    Containers    |<----->|           Images              | |
+      |  |------------------|       |-------------------------------| |
+      |  |  [Container 1]   |       |  ubuntu:latest                | |
+      |  |  [Container 2]   |       |  redis:latest                 | |
+      |  |  [Container 3]   |       +-------------------------------+ |
+      |  +------------------+                                         |
+      +---------------------------------------------------------------+
+                       |
+                       |  (Pull/Push Images)
+                       v
+      +---------------------------------------------------------------+
+      |                           Registry                            |
+      |---------------------------------------------------------------|
+      |  ubuntu   |  centos   |  redis   |  nginx                     |
+      +---------------------------------------------------------------+
 
     # User must explicitly continue (prevents info overload)
     wait_for_continue: true
@@ -231,7 +265,7 @@ steps:
     pre_content: |
       Instead of signing a container image (which requires registry access),
       let's sign a file. This demonstrates the same cryptographic concepts!
-      
+
       First, let's create a sample artifact that represents a release binary.
 
     example: "echo 'MyApp v1.0.0 - Production Release' > myapp-release.txt"
@@ -276,13 +310,13 @@ steps:
     alternative_validations:
       - type: "output_contains"
         patterns:
-          - "MEU"  # Signature starts with MEU in base64
-          - "MEY"  # Or MEY
+          - "MEU" # Signature starts with MEU in base64
+          - "MEY" # Or MEY
         any_match: true
 
     post_content: |
       🎉 **Artifact signed!** The signature is now in myapp-release.txt.sig
-      
+
       This signature file can be distributed alongside your artifact.
       Anyone with your public key can verify it came from you.
 
@@ -321,8 +355,8 @@ steps:
       any_match: false
 
     post_content: |
-      ✅ **Signature verified!** 
-      
+      ✅ **Signature verified!**
+
       The "Verified OK" message confirms:
       - The file was signed with the private key
       - The file hasn't been modified since signing
@@ -333,50 +367,50 @@ steps:
 
     timeout: 20
     allow_skip: true
-#  - type: command
-#    id: "sign-image"
-#    prompt: "Sign a container image"
-#
-#    pre_content: |
-#      Let's sign the `gcr.io/distroless/static:latest` image.
-#
-#      You'll be prompted for your key password (the one you set earlier).
-#
-#    example:
-#      "cosign sign --key cosign.key gcr.io/distroless/static:latest"
-#
-#      # Allow variations
-#    accepted_commands:
-#      - "cosign sign --key cosign.key gcr.io/distroless/static:latest"
-#      - "cosign sign --key cosign.key gcr.io/distroless/static"
-#      - "cosign sign --key ./cosign.key gcr.io/distroless/static:latest"
-#
-#    validation:
-#      type: "output_contains"
-#      patterns:
-#        - "Pushing signature to"
-#        - "Successfully signed"
-#      any_match: true # Match any of the patterns
-#
-#    post_content: |
-#      🎉 **Image signed!** The signature is now stored in the registry.
-#
-#      Notice the output shows where the signature was pushed. Cosign stores
-#      signatures as OCI artifacts alongside the original image.
-#
-#    success_msg: "✅ Image signed successfully!"
-#    fail_msg: "❌ Signing failed. Did you enter the correct password?"
-#
-#    hints:
-#      - level: 1
-#        text: "Make sure to include --key cosign.key"
-#      - level: 2
-#        text: "Enter the password you set during key generation"
-#      - level: 3
-#        text: "Full command: cosign sign --key cosign.key gcr.io/distroless/static:latest"
-#
-#    timeout: 60
-#    allow_skip: true
+  #  - type: command
+  #    id: "sign-image"
+  #    prompt: "Sign a container image"
+  #
+  #    pre_content: |
+  #      Let's sign the `gcr.io/distroless/static:latest` image.
+  #
+  #      You'll be prompted for your key password (the one you set earlier).
+  #
+  #    example:
+  #      "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+  #
+  #      # Allow variations
+  #    accepted_commands:
+  #      - "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+  #      - "cosign sign --key cosign.key gcr.io/distroless/static"
+  #      - "cosign sign --key ./cosign.key gcr.io/distroless/static:latest"
+  #
+  #    validation:
+  #      type: "output_contains"
+  #      patterns:
+  #        - "Pushing signature to"
+  #        - "Successfully signed"
+  #      any_match: true # Match any of the patterns
+  #
+  #    post_content: |
+  #      🎉 **Image signed!** The signature is now stored in the registry.
+  #
+  #      Notice the output shows where the signature was pushed. Cosign stores
+  #      signatures as OCI artifacts alongside the original image.
+  #
+  #    success_msg: "✅ Image signed successfully!"
+  #    fail_msg: "❌ Signing failed. Did you enter the correct password?"
+  #
+  #    hints:
+  #      - level: 1
+  #        text: "Make sure to include --key cosign.key"
+  #      - level: 2
+  #        text: "Enter the password you set during key generation"
+  #      - level: 3
+  #        text: "Full command: cosign sign --key cosign.key gcr.io/distroless/static:latest"
+  #
+  #    timeout: 60
+  #    allow_skip: true
 
   # === SECTION 6: Verification ===
 

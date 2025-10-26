@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/tryoutshell/tryoutshell/internal/ui"
 	"log"
 	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/tryoutshell/tryoutshell/internal/ui"
+	"github.com/tryoutshell/tryoutshell/types"
 )
 
 var (
@@ -29,7 +31,7 @@ var selectCmd = &cobra.Command{
 		orgList := getOrganizationList()
 		org := args[0]
 		isOrgPresent := false
-		var orgDetail OrganizationDetails
+		var orgDetail types.OrganizationDetails
 
 		// Check org is present in manifest.json
 		for _, d := range orgList {

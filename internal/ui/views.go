@@ -76,152 +76,115 @@ func (m Model) renderCommandStep(step lessons_pkg.StepType) string {
 	var b strings.Builder
 
 	width := m.getContentWidth()
-	// Show working directory at the top
+
+	// Step title bar (like codecrafters)
+	titleBar := m.styles.StepTitle.
+		Width(width).
+		Render(step.Prompt)
+	b.WriteString(titleBar + "\n\n")
+
+	// Working directory (subtle)
 	workingDirInfo := m.styles.Muted.Render(
-		fmt.Sprintf("  📂 Working in: %s", m.runner.GetWorkingDir()),
+		fmt.Sprintf("📂 %s", m.runner.GetWorkingDir()),
 	)
 	b.WriteString(workingDirInfo + "\n\n")
-	// Title
-	title := m.styles.StepTitle.Width(width).Render("  " + step.Prompt + "  ")
-	b.WriteString("\n" + title + "\n\n")
 
-	// Pre-content
+	// Pre-content with proper formatting
 	if step.PreContent != "" {
 		preContent := m.formatMarkdown(step.PreContent)
-		lines := strings.Split(preContent, "\n")
-		for _, line := range lines {
-			b.WriteString("  " + line + "\n")
-		}
-		b.WriteString("\n")
+		b.WriteString(preContent + "\n\n")
 	}
 
-	// Instruction
+	// Instruction (arrow pointer like codecrafters)
 	if step.Instruction != "" {
-		instruction := lipgloss.NewStyle().
-			Foreground(m.styles.Theme.Primary).
-			Render("  → " + step.Instruction)
+		instruction := m.styles.InfoMsg.Render("→ " + step.Instruction)
 		b.WriteString(instruction + "\n\n")
 	}
 
-	// Example command
+	// Example command in clean box
 	if step.Example != "" {
-		exampleHeader := m.styles.Muted.Render("  Example:")
-		b.WriteString(exampleHeader + "\n\n")
+		exampleLabel := m.styles.Muted.Render("Example:")
+		b.WriteString(exampleLabel + "\n\n")
 
-		exampleContent := "    " + m.styles.CommandPrompt.Render() + step.Example
-		exampleBox := m.styles.CodeBlock.Width(width - 4).Render(exampleContent)
-		b.WriteString("  " + exampleBox + "\n\n")
+		exampleContent := m.styles.CommandPrompt.Render() + step.Example
+		exampleBox := m.styles.CommandExample.
+			Width(width).
+			Render(exampleContent)
+		b.WriteString(exampleBox + "\n")
 	}
 
-	// Input box or output
+	// Input area or output
 	if m.stepState == StepPending || m.stepState == StepFailed {
-		inputLabel := m.styles.Bold.Render("  Your turn:")
+		// Input label
+		inputLabel := m.styles.InfoMsg.Render("Your turn:")
 		b.WriteString(inputLabel + "\n\n")
 
-		// Show input with prompt
-		inputContent := "    " + m.styles.CommandPrompt.Render() + m.textInput.View()
-		inputBox := m.styles.CommandInput.Width(width - 4).Render(inputContent)
-		b.WriteString("  " + inputBox + "\n\n")
+		// Input box with proper width
+		inputContent := m.styles.CommandPrompt.Render() + m.textInput.View()
+		inputBox := m.styles.CommandInput.
+			Width(width).
+			Render(inputContent)
+		b.WriteString(inputBox + "\n")
 
-		// Debug commands help
-		debugHint := m.styles.Muted.Render("  💡 Debug commands: :pwd :ls :state | Type ':skip' or Ctrl+Y to skip | '?' for hints")
+		// Debug commands hint (subtle, like codecrafters footer)
+		debugHint := m.styles.Muted.Render(
+			"💡 Debug commands: :pwd :ls :state | Type ':skip' or Ctrl+Y to skip | '?' for hints",
+		)
 		b.WriteString(debugHint + "\n")
 
-		// Skip hint
-		skipHint := m.styles.Muted.Render("  💡 Type ':skip' or press Ctrl+Y to skip | Press '?' for hints")
-		b.WriteString(skipHint + "\n")
-
-		// Show hints
+		// Show hints if requested
 		if m.currentHint > 0 && m.currentHint <= len(step.Hints) {
 			hint := step.Hints[m.currentHint-1]
-			hintContent := fmt.Sprintf("💡 Hint %d/%d\n\n%s", m.currentHint, len(step.Hints), hint.Text)
-			hintBox := m.styles.HintBox.Width(width - 6).Render(hintContent)
-			b.WriteString("\n  " + hintBox + "\n")
+			hintContent := fmt.Sprintf("💡 Hint %d/%d\n\n%s",
+				m.currentHint, len(step.Hints), hint.Text)
+			hintBox := m.styles.HintBox.
+				Width(width).
+				Render(hintContent)
+			b.WriteString("\n" + hintBox + "\n")
 		}
 
-		// // Error message
-		// if m.stepState == StepFailed {
-		// 	errorMsg := m.styles.ErrorMsg.Render("\n  ❌ " + step.FailMsg)
-		// 	b.WriteString(errorMsg + "\n\n")
-		// 	b.WriteString(m.styles.Muted.Render("  Press Enter to try again...") + "\n")
-		// }
-
-		// FULL ERROR DETAILS
-		// FULL ERROR DETAILS
+		// Error details if failed
 		if m.stepState == StepFailed {
-			errorHeader := m.styles.ErrorMsg.Render("  ❌ " + step.FailMsg)
-			b.WriteString("\n" + errorHeader + "\n\n")
-
-			// Show the actual command output first
-			if m.commandOutput != "" {
-				outputLabel := m.styles.Muted.Render("  Command Output:")
-				b.WriteString(outputLabel + "\n\n")
-
-				outputLines := strings.Split(m.commandOutput, "\n")
-				var paddedOutput []string
-				for _, line := range outputLines {
-					paddedOutput = append(paddedOutput, "    "+line)
-				}
-
-				outputBox := m.styles.OutputError.Width(width - 4).Render(strings.Join(paddedOutput, "\n"))
-				b.WriteString("  " + outputBox + "\n\n")
-			}
-
-			// Then show debug information if available
-			if m.lastCommandResult.Command != "" {
-				b.WriteString(m.renderFullErrorDetails(step, m.lastCommandResult))
-			}
-
-			actionPrompt := m.styles.Muted.Render("\n  Try debug commands: :pwd | :ls | :state\n  Press Enter to retry, '?' for hints, or Ctrl+Y to skip")
-			b.WriteString(actionPrompt + "\n")
+			b.WriteString("\n" + m.renderFullErrorDetails(step, m.lastCommandResult) + "\n")
 		}
 
 	} else if m.stepState == StepExecuting {
-		executing := lipgloss.NewStyle().
-			Foreground(m.styles.Theme.Warning).
-			Render("  ⏳ Executing command...")
+		executing := m.styles.WarningMsg.Render("⏳ Executing command...")
 		b.WriteString(executing + "\n")
 
 	} else if m.stepState == StepSuccess {
-		// Command executed
-		cmdLabel := m.styles.Muted.Render("  Command executed:")
+		// Command executed box
+		cmdLabel := m.styles.Muted.Render("Command executed:")
 		b.WriteString(cmdLabel + "\n\n")
 
-		cmdContent := "    " + m.styles.CommandPrompt.Render() + m.textInput.Value()
-		cmdBox := m.styles.Border.Width(width - 4).Render(cmdContent)
-		b.WriteString("  " + cmdBox + "\n\n")
+		cmdContent := m.styles.CommandPrompt.Render() + m.textInput.Value()
+		cmdBox := m.styles.BoxBorder.
+			Width(width).
+			Render(cmdContent)
+		b.WriteString(cmdBox + "\n\n")
 
-		// Output
+		// Output box
 		if m.commandOutput != "" {
-			outputLabel := m.styles.Muted.Render("  Output:")
+			outputLabel := m.styles.Muted.Render("Output:")
 			b.WriteString(outputLabel + "\n\n")
 
-			// Add padding to output lines
-			outputLines := strings.Split(m.commandOutput, "\n")
-			var paddedOutput []string
-			for _, line := range outputLines {
-				paddedOutput = append(paddedOutput, "    "+line)
-			}
-
-			outputBox := m.styles.OutputSuccess.Width(width - 4).Render(strings.Join(paddedOutput, "\n"))
-			b.WriteString("  " + outputBox + "\n\n")
+			outputBox := m.styles.OutputSuccess.
+				Width(width).
+				Render(m.commandOutput)
+			b.WriteString(outputBox + "\n\n")
 		}
 
 		// Success message
-		successMsg := m.styles.SuccessMsg.Render("  ✅ " + step.SuccessMsg)
+		successMsg := m.styles.SuccessMsg.Render("✅ " + step.SuccessMsg)
 		b.WriteString(successMsg + "\n")
 
 		// Post-content
 		if step.PostContent != "" {
-			b.WriteString("\n")
-			postLines := strings.Split(m.formatMarkdown(step.PostContent), "\n")
-			for _, line := range postLines {
-				b.WriteString("  " + line + "\n")
-			}
+			b.WriteString("\n" + m.formatMarkdown(step.PostContent) + "\n")
 		}
 
 		// Continue hint
-		continueHint := m.styles.Muted.Render("\n  Press Enter to continue...")
+		continueHint := m.styles.Muted.Render("\nPress Enter to continue...")
 		b.WriteString(continueHint + "\n")
 	}
 
@@ -521,17 +484,15 @@ func (m Model) renderInfoStep(step lessons_pkg.StepType) string {
 
 	width := m.getContentWidth()
 
-	// Title with padding
-	title := m.styles.StepTitle.Width(width).Render("  " + step.Title + "  ")
-	b.WriteString("\n" + title + "\n\n")
+	// Title bar
+	titleBar := m.styles.StepTitle.
+		Width(width).
+		Render(step.Title)
+	b.WriteString(titleBar + "\n\n")
 
 	// Content with proper formatting
 	content := m.formatMarkdown(step.Content)
-	// Add left padding to each line
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		b.WriteString("  " + line + "\n")
-	}
+	b.WriteString(content + "\n")
 
 	// Code blocks
 	for _, block := range step.CodeBlocks {
@@ -540,7 +501,7 @@ func (m Model) renderInfoStep(step lessons_pkg.StepType) string {
 
 	// Callouts
 	for _, callout := range step.Callouts {
-		b.WriteString("\n  " + m.renderCallout(callout) + "\n")
+		b.WriteString("\n" + m.renderCallout(callout) + "\n")
 	}
 
 	// Diagram
@@ -549,7 +510,7 @@ func (m Model) renderInfoStep(step lessons_pkg.StepType) string {
 	}
 
 	// Continue hint
-	continueHint := m.styles.Muted.Render("\n  Press Enter to continue...")
+	continueHint := m.styles.Muted.Render("\nPress Enter to continue...")
 	b.WriteString(continueHint + "\n")
 
 	return b.String()
@@ -635,9 +596,47 @@ func (m Model) renderCallout(callout lessons_pkg.CalloutType) string {
 	return style.Width(width).Render(fmt.Sprintf("%s %s", icon, callout.Text))
 }
 
+// renderDiagram renders ASCII diagrams with syntax highlighting
 func (m Model) renderDiagram(diagram string) string {
-	width := m.getContentWidth()
-	return m.styles.Border.Width(width).Render(diagram)
+	lines := strings.Split(diagram, "\n")
+	var highlighted []string
+
+	for _, line := range lines {
+		// Highlight box drawing characters
+		if strings.Contains(line, "┌") || strings.Contains(line, "└") ||
+			strings.Contains(line, "│") || strings.Contains(line, "─") ||
+			strings.Contains(line, "┐") || strings.Contains(line, "┘") {
+			line = lipgloss.NewStyle().
+				Foreground(m.styles.Theme.Primary).
+				Render(line)
+		}
+
+		// Highlight arrows
+		if strings.Contains(line, "→") || strings.Contains(line, "▶") {
+			line = lipgloss.NewStyle().
+				Foreground(m.styles.Theme.Success).
+				Bold(true).
+				Render(line)
+		}
+
+		// Highlight keywords
+		line = strings.ReplaceAll(line, "Image",
+			lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true).Render("Image"))
+		line = strings.ReplaceAll(line, "Cosign",
+			lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true).Render("Cosign"))
+		line = strings.ReplaceAll(line, ".sig",
+			lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Render(".sig"))
+		line = strings.ReplaceAll(line, "✓",
+			lipgloss.NewStyle().Foreground(m.styles.Theme.Success).Bold(true).Render("✓"))
+
+		highlighted = append(highlighted, line)
+	}
+
+	diagramBox := m.styles.BoxBorder.
+		Width(m.getContentWidth()).
+		Render(strings.Join(highlighted, "\n"))
+
+	return diagramBox
 }
 
 func (m Model) getStepTypeLabel(stepType string) string {
@@ -672,48 +671,111 @@ func (m Model) renderHelpText(stepType string) string {
 func (m Model) formatMarkdown(text string) string {
 	lines := strings.Split(text, "\n")
 	var formatted []string
+	inCodeBlock := false
 
-	for _, line := range lines {
+	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Handle different markdown elements
-		if strings.HasPrefix(trimmed, "###") {
-			// Subheading
-			heading := strings.TrimPrefix(trimmed, "###")
-			heading = strings.TrimSpace(heading)
+		// Code blocks (```)
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			continue
+		}
+
+		if inCodeBlock {
+			// Render code block line
+			codeLine := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("252")).
+				Render("  " + line)
+			formatted = append(formatted, codeLine)
+			continue
+		}
+
+		// Headings
+		if strings.HasPrefix(trimmed, "### ") {
+			heading := strings.TrimPrefix(trimmed, "### ")
+			formatted = append(formatted, "")
+			formatted = append(formatted, m.styles.SubHeading.Render(heading))
+			formatted = append(formatted, "")
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "## ") {
+			heading := strings.TrimPrefix(trimmed, "## ")
 			formatted = append(formatted, "")
 			formatted = append(formatted, m.styles.Bold.Render(heading))
 			formatted = append(formatted, "")
-		} else if strings.HasPrefix(trimmed, "##") {
-			// Heading
-			heading := strings.TrimPrefix(trimmed, "##")
-			heading = strings.TrimSpace(heading)
-			formatted = append(formatted, "")
-			formatted = append(formatted, m.styles.Bold.Render(heading))
-			formatted = append(formatted, "")
-		} else if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
-			// Bullet point - maintain indentation
+			continue
+		}
+
+		// Bullet points
+		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
 			bullet := strings.TrimPrefix(trimmed, "- ")
 			bullet = strings.TrimPrefix(bullet, "* ")
-			formatted = append(formatted, "  • "+m.formatInlineMarkdown(bullet))
-		} else if regexp.MustCompile(`^\d+\.`).MatchString(trimmed) {
-			// Numbered list - maintain indentation
-			formatted = append(formatted, "  "+m.formatInlineMarkdown(trimmed))
-		} else if strings.HasPrefix(trimmed, ">") {
-			// Blockquote
-			quote := strings.TrimPrefix(trimmed, ">")
-			quote = strings.TrimSpace(quote)
-			formatted = append(formatted, "  "+m.styles.Muted.Render("│ "+quote))
-		} else if trimmed == "" {
-			// Empty line
+			formatted = append(formatted, "  • "+m.formatInline(bullet))
+			continue
+		}
+
+		// Numbered lists
+		if regexp.MustCompile(`^\d+\.`).MatchString(trimmed) {
+			formatted = append(formatted, "  "+m.formatInline(trimmed))
+			continue
+		}
+
+		// Blockquotes
+		if strings.HasPrefix(trimmed, "> ") {
+			quote := strings.TrimPrefix(trimmed, "> ")
+			quoteLine := m.styles.Muted.Render("│ " + quote)
+			formatted = append(formatted, "  "+quoteLine)
+			continue
+		}
+
+		// Empty lines
+		if trimmed == "" {
 			formatted = append(formatted, "")
-		} else {
-			// Regular paragraph - add left padding
-			formatted = append(formatted, m.formatInlineMarkdown(trimmed))
+			continue
+		}
+
+		// Regular paragraphs
+		formatted = append(formatted, "  "+m.formatInline(line))
+
+		// Add spacing after paragraphs (if next line is not empty)
+		if i < len(lines)-1 && strings.TrimSpace(lines[i+1]) != "" &&
+			!strings.HasPrefix(strings.TrimSpace(lines[i+1]), "-") {
+			// Don't add extra space
 		}
 	}
 
 	return strings.Join(formatted, "\n")
+}
+
+// formatInline handles inline markdown (bold, code, links)
+func (m Model) formatInline(text string) string {
+	// Bold (**text**)
+	re := regexp.MustCompile(`\*\*(.*?)\*\*`)
+	text = re.ReplaceAllStringFunc(text, func(match string) string {
+		content := strings.Trim(match, "*")
+		return m.styles.Bold.Render(content)
+	})
+
+	// Inline code (`code`)
+	re = regexp.MustCompile("`([^`]+)`")
+	text = re.ReplaceAllStringFunc(text, func(match string) string {
+		code := strings.Trim(match, "`")
+		return m.styles.InlineCode.Render(code)
+	})
+
+	// Links ([text](url))
+	re = regexp.MustCompile(`\[([^\]]+)\]\(([^\)]+)\)`)
+	text = re.ReplaceAllStringFunc(text, func(match string) string {
+		parts := re.FindStringSubmatch(match)
+		if len(parts) == 3 {
+			return m.styles.Link.Render(parts[1])
+		}
+		return match
+	})
+
+	return text
 }
 
 // Helper for inline markdown (bold, code)
@@ -735,12 +797,34 @@ func (m Model) formatInlineMarkdown(text string) string {
 	return text
 }
 
-func (m Model) getContentWidth() int {
-	maxWidth := 120 // Increased for better readability
-	padding := 20
+// func (m Model) getContentWidth() int {
+// 	maxWidth := 120 // Increased for better readability
+// 	padding := 20
 
-	if m.width < maxWidth+padding {
-		return m.width - padding
+// 	if m.width < maxWidth+padding {
+// 		return m.width - padding
+// 	}
+// 	return maxWidth
+// }
+
+func (m Model) getBoxWidth() int {
+	// Account for: border (2 chars) + padding (4 chars) = 6 chars total
+	return m.getContentWidth() - 6
+}
+
+func (m Model) getContentWidth() int {
+	if m.width == 0 {
+		return 100 // Default width
+	}
+
+	// Leave margins for borders and padding
+	maxWidth := 120
+	margins := 8 // Account for borders, padding
+
+	availableWidth := m.width - margins
+
+	if availableWidth < maxWidth {
+		return availableWidth
 	}
 	return maxWidth
 }
