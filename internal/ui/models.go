@@ -115,6 +115,8 @@ type Model struct {
 	// Runner
 	runner      *runner.Runner
 	sandboxInfo string
+	//  store full result
+	lastCommandResult runner.CommandResult
 }
 
 // NewModel creates a new model
@@ -296,6 +298,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleSkip()
 		}
 
+	case DebugCommandResultMsg:
+		// Show debug output but don't change step state
+		m.commandOutput = msg.Output
+		m.updateViewportContent()
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -475,6 +483,7 @@ func (m Model) handleHintRequest() (tea.Model, tea.Cmd) {
 func (m Model) handleCommandResult(msg CommandResultMsg) (tea.Model, tea.Cmd) {
 	m.commandOutput = msg.Output
 	m.lastError = msg.Error
+	m.lastCommandResult = msg.FullResult // STORE FULL RESULT
 
 	if msg.Success {
 		m.stepState = StepSuccess
@@ -615,9 +624,10 @@ func (m Model) renderFooter() string {
 
 // Custom messages
 type CommandResultMsg struct {
-	Output  string
-	Error   error
-	Success bool
+	Output     string
+	Error      error
+	Success    bool
+	FullResult runner.CommandResult
 }
 
 type AdvanceStepMsg struct{}
@@ -625,36 +635,60 @@ type AdvanceStepMsg struct{}
 // executeCommand runs a shell command
 func (m Model) executeCommand(cmd string, step lessons_pkg.StepType) tea.Cmd {
 	return func() tea.Msg {
+		// Execute command
 		result := m.runner.Execute(cmd, step.Timeout)
 
-		success := false
-		if result.Error == nil || result.ExitCode == 0 {
-			success = m.runner.Verify(result, step.Validation)
+		// Verify result WITH detailed validation info
+		result, success := m.runner.Verify(result, step.Validation)
 
-			if !success && len(step.AlternativeValidations) > 0 {
-				for _, altVal := range step.AlternativeValidations {
-					if m.runner.Verify(result, altVal) {
-						success = true
-						break
-					}
+		// Try alternative validations if primary fails
+		if !success && len(step.AlternativeValidations) > 0 {
+			for _, altVal := range step.AlternativeValidations {
+				result, success = m.runner.Verify(result, altVal)
+				if success {
+					break
 				}
 			}
 		}
 
-		output := fmt.Sprintf("$ %s\n\n%s\n\n⏱  Completed in %.2fs",
+		// Format output for display
+		output := fmt.Sprintf("$ %s\n\n%s",
 			cmd,
 			result.Output,
-			result.Duration.Seconds(),
 		)
 
-		if result.Error != nil && result.ExitCode != 0 {
-			output += fmt.Sprintf("\n\nExit code: %d", result.ExitCode)
+		if result.Duration > 0 {
+			output += fmt.Sprintf("\n\n⏱  Completed in %.2fs", result.Duration.Seconds())
 		}
 
 		return CommandResultMsg{
-			Output:  output,
-			Error:   result.Error,
-			Success: success,
+			Output:     output,
+			Error:      result.Error,
+			Success:    success,
+			FullResult: result, // ADD THIS
 		}
 	}
+}
+
+// executeDebugCommand runs debug commands without validation
+func (m Model) executeDebugCommand(cmd string) tea.Cmd {
+	return func() tea.Msg {
+		// Execute debug command
+		result := m.runner.Execute(cmd, 5) // 5 second timeout
+
+		// Format output
+		output := fmt.Sprintf("$ %s\n\n%s", cmd, result.Output)
+
+		// Return as success (debug commands don't affect step progress)
+		return DebugCommandResultMsg{
+			Output:  output,
+			Command: cmd,
+		}
+	}
+}
+
+// Add new message type
+type DebugCommandResultMsg struct {
+	Output  string
+	Command string
 }

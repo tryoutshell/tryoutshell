@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	lessons_pkg "github.com/tryoutshell/tryoutshell/internal/lessons"
+	"github.com/tryoutshell/tryoutshell/internal/runner"
 )
 
 // renderIntroduction renders the introduction screen
@@ -75,7 +76,11 @@ func (m Model) renderCommandStep(step lessons_pkg.StepType) string {
 	var b strings.Builder
 
 	width := m.getContentWidth()
-
+	// Show working directory at the top
+	workingDirInfo := m.styles.Muted.Render(
+		fmt.Sprintf("  📂 Working in: %s", m.runner.GetWorkingDir()),
+	)
+	b.WriteString(workingDirInfo + "\n\n")
 	// Title
 	title := m.styles.StepTitle.Width(width).Render("  " + step.Prompt + "  ")
 	b.WriteString("\n" + title + "\n\n")
@@ -118,6 +123,10 @@ func (m Model) renderCommandStep(step lessons_pkg.StepType) string {
 		inputBox := m.styles.CommandInput.Width(width - 4).Render(inputContent)
 		b.WriteString("  " + inputBox + "\n\n")
 
+		// Debug commands help
+		debugHint := m.styles.Muted.Render("  💡 Debug commands: :pwd :ls :state | Type ':skip' or Ctrl+Y to skip | '?' for hints")
+		b.WriteString(debugHint + "\n")
+
 		// Skip hint
 		skipHint := m.styles.Muted.Render("  💡 Type ':skip' or press Ctrl+Y to skip | Press '?' for hints")
 		b.WriteString(skipHint + "\n")
@@ -130,11 +139,41 @@ func (m Model) renderCommandStep(step lessons_pkg.StepType) string {
 			b.WriteString("\n  " + hintBox + "\n")
 		}
 
-		// Error message
+		// // Error message
+		// if m.stepState == StepFailed {
+		// 	errorMsg := m.styles.ErrorMsg.Render("\n  ❌ " + step.FailMsg)
+		// 	b.WriteString(errorMsg + "\n\n")
+		// 	b.WriteString(m.styles.Muted.Render("  Press Enter to try again...") + "\n")
+		// }
+
+		// FULL ERROR DETAILS
+		// FULL ERROR DETAILS
 		if m.stepState == StepFailed {
-			errorMsg := m.styles.ErrorMsg.Render("\n  ❌ " + step.FailMsg)
-			b.WriteString(errorMsg + "\n\n")
-			b.WriteString(m.styles.Muted.Render("  Press Enter to try again...") + "\n")
+			errorHeader := m.styles.ErrorMsg.Render("  ❌ " + step.FailMsg)
+			b.WriteString("\n" + errorHeader + "\n\n")
+
+			// Show the actual command output first
+			if m.commandOutput != "" {
+				outputLabel := m.styles.Muted.Render("  Command Output:")
+				b.WriteString(outputLabel + "\n\n")
+
+				outputLines := strings.Split(m.commandOutput, "\n")
+				var paddedOutput []string
+				for _, line := range outputLines {
+					paddedOutput = append(paddedOutput, "    "+line)
+				}
+
+				outputBox := m.styles.OutputError.Width(width - 4).Render(strings.Join(paddedOutput, "\n"))
+				b.WriteString("  " + outputBox + "\n\n")
+			}
+
+			// Then show debug information if available
+			if m.lastCommandResult.Command != "" {
+				b.WriteString(m.renderFullErrorDetails(step, m.lastCommandResult))
+			}
+
+			actionPrompt := m.styles.Muted.Render("\n  Try debug commands: :pwd | :ls | :state\n  Press Enter to retry, '?' for hints, or Ctrl+Y to skip")
+			b.WriteString(actionPrompt + "\n")
 		}
 
 	} else if m.stepState == StepExecuting {
@@ -189,7 +228,94 @@ func (m Model) renderCommandStep(step lessons_pkg.StepType) string {
 	return b.String()
 }
 
-// renderQuizStep renders a quiz step
+// Render full error details with debugging context
+func (m Model) renderFullErrorDetails(step lessons_pkg.StepType, result runner.CommandResult) string {
+	var b strings.Builder
+
+	width := m.getContentWidth()
+
+	// Error header
+	errorHeader := m.styles.ErrorMsg.Render("  ❌ " + step.FailMsg)
+	b.WriteString(errorHeader + "\n\n")
+
+	// Debug information box
+	debugBox := strings.Builder{}
+	debugBox.WriteString("📋 DEBUG INFORMATION\n")
+	debugBox.WriteString(strings.Repeat("━", width-6) + "\n\n")
+
+	// Command info
+	debugBox.WriteString("Command executed:\n")
+	debugBox.WriteString("  $ " + result.Command + "\n\n")
+
+	// Working directory
+	debugBox.WriteString("Working directory:\n")
+	debugBox.WriteString("  " + result.WorkingDir + "\n\n")
+
+	// Exit code
+	debugBox.WriteString("Exit code: ")
+	if result.ExitCode == 0 {
+		debugBox.WriteString("0 (success)\n\n")
+	} else {
+		debugBox.WriteString(fmt.Sprintf("%d (error)\n\n", result.ExitCode))
+	}
+
+	// Duration
+	debugBox.WriteString(fmt.Sprintf("Duration: %.2fs\n\n", result.Duration.Seconds()))
+
+	// Full output
+	if result.Output != "" {
+		debugBox.WriteString("Full output:\n")
+		outputLines := strings.Split(result.Output, "\n")
+		for _, line := range outputLines {
+			debugBox.WriteString("  " + line + "\n")
+		}
+		debugBox.WriteString("\n")
+	}
+
+	// Validation details
+	debugBox.WriteString("Validation attempted:\n")
+	debugBox.WriteString(fmt.Sprintf("  Type: %s\n", result.ValidationInfo.ValidationType))
+
+	if !result.ValidationInfo.Passed {
+		debugBox.WriteString("  Status: ✗ FAILED\n\n")
+
+		debugBox.WriteString(fmt.Sprintf("  Expected: %v\n", result.ValidationInfo.Expected))
+		debugBox.WriteString(fmt.Sprintf("  Actual: %v\n\n", result.ValidationInfo.Actual))
+
+		if len(result.ValidationInfo.Details) > 0 {
+			debugBox.WriteString("  Details:\n")
+			for _, detail := range result.ValidationInfo.Details {
+				debugBox.WriteString("    • " + detail + "\n")
+			}
+			debugBox.WriteString("\n")
+		}
+	}
+
+	// Troubleshooting suggestions
+	debugBox.WriteString("What to check:\n")
+	debugBox.WriteString("  1. Run ':pwd' to see your current directory\n")
+	debugBox.WriteString("  2. Run ':ls' to list files in the directory\n")
+	debugBox.WriteString("  3. Run ':state' to see expected lesson state\n")
+
+	// Specific suggestions based on validation type
+	if result.ValidationInfo.ValidationType == "file_exists" {
+		debugBox.WriteString("  4. Check file permissions: ls -la\n")
+		debugBox.WriteString("  5. Verify you're in a writable directory: touch test.txt\n")
+	}
+
+	debugBox.WriteString("\n" + strings.Repeat("━", width-6))
+
+	// Render the debug box
+	debugBoxStyled := m.styles.OutputError.Width(width - 4).Render(debugBox.String())
+	b.WriteString("  " + debugBoxStyled + "\n\n")
+
+	// Action prompt
+	actionPrompt := m.styles.Muted.Render("  Press Enter to try again, '?' for hints, or Ctrl+Y to skip")
+	b.WriteString(actionPrompt + "\n")
+
+	return b.String()
+}
+
 // renderQuizStep with better formatting
 func (m Model) renderQuizStep(step lessons_pkg.StepType) string {
 	var b strings.Builder
@@ -206,30 +332,71 @@ func (m Model) renderQuizStep(step lessons_pkg.StepType) string {
 
 	q := step.Questions[m.currentQuizQ]
 
-	// Title
+	// Title with progress
 	title := m.styles.StepTitle.Width(width).Render(
-		fmt.Sprintf("  Quiz - Question %d/%d  ", m.currentQuizQ+1, len(step.Questions)),
+		fmt.Sprintf("  📝 Quiz - Question %d of %d  ", m.currentQuizQ+1, len(step.Questions)),
 	)
 	b.WriteString("\n" + title + "\n\n")
 
-	// Question
-	question := m.styles.Bold.Render(q.Question)
-	b.WriteString("  " + question + "\n\n")
+	// Question with nice formatting
+	questionBox := m.styles.Border.Width(width - 4).Render(
+		m.styles.Bold.Render("❓ " + q.Question),
+	)
+	b.WriteString("  " + questionBox + "\n\n")
 
-	// Options
+	// Check if already answered
+	answered, hasAnswered := m.quizAnswers[q.ID]
+
+	// Options with better styling
 	for i, option := range q.Options {
 		var optionLine string
+		var optionPrefix string
 
-		if i == m.selectedOption {
-			// Highlighted option
-			optionStyle := lipgloss.NewStyle().
-				Foreground(m.styles.Theme.Primary).
-				Bold(true).
-				Background(lipgloss.Color("240"))
+		if hasAnswered {
+			// Show which option was selected and which was correct
+			if i == answered && i == q.Answer {
+				// User selected correct answer
+				optionPrefix = "  ✅ "
+				optionStyle := lipgloss.NewStyle().
+					Foreground(m.styles.Theme.Success).
+					Bold(true)
+				optionLine = optionStyle.Render(optionPrefix + option)
 
-			optionLine = optionStyle.Render(fmt.Sprintf("  ▸ %s  ", option))
+			} else if i == answered && i != q.Answer {
+				// User selected wrong answer
+				optionPrefix = "  ❌ "
+				optionStyle := lipgloss.NewStyle().
+					Foreground(m.styles.Theme.Error).
+					Bold(true).
+					Strikethrough(true)
+				optionLine = optionStyle.Render(optionPrefix + option)
+
+			} else if i == q.Answer {
+				// Show correct answer
+				optionPrefix = "  ✓  "
+				optionStyle := lipgloss.NewStyle().
+					Foreground(m.styles.Theme.Success)
+				optionLine = optionStyle.Render(optionPrefix + option + " (correct)")
+
+			} else {
+				// Other options
+				optionPrefix = "     "
+				optionLine = m.styles.Muted.Render(optionPrefix + option)
+			}
+
 		} else {
-			optionLine = fmt.Sprintf("    %s", option)
+			// Not answered yet - show selection cursor
+			if i == m.selectedOption {
+				// Highlighted option
+				optionStyle := lipgloss.NewStyle().
+					Foreground(m.styles.Theme.Primary).
+					Bold(true).
+					Background(lipgloss.Color("237"))
+
+				optionLine = "  " + optionStyle.Render(fmt.Sprintf(" ▸ %s ", option))
+			} else {
+				optionLine = fmt.Sprintf("     %s", option)
+			}
 		}
 
 		b.WriteString(optionLine + "\n")
@@ -237,35 +404,53 @@ func (m Model) renderQuizStep(step lessons_pkg.StepType) string {
 
 	b.WriteString("\n")
 
-	// Help text
-	helpText := m.styles.Muted.Render("  ↑/↓ or j/k: Navigate  •  Enter: Submit answer")
-	b.WriteString(helpText + "\n")
-
 	// Show result if already answered
-	if answered, ok := m.quizAnswers[q.ID]; ok {
-		b.WriteString("\n")
+	if hasAnswered {
 		if answered == q.Answer {
-			result := m.styles.SuccessMsg.Render("  ✅ Correct!")
-			b.WriteString(result + "\n")
+			result := m.styles.SuccessMsg.Render("  🎉 Correct! Well done!")
+			b.WriteString(result + "\n\n")
 		} else {
 			result := m.styles.ErrorMsg.Render("  ❌ Incorrect")
-			b.WriteString(result + "\n")
-			correctAnswer := m.styles.Paragraph.Render(
-				"  Correct answer: " + q.Options[q.Answer],
-			)
-			b.WriteString(correctAnswer + "\n")
+			b.WriteString(result + "\n\n")
+
+			correctAnswer := lipgloss.NewStyle().
+				Foreground(m.styles.Theme.Success).
+				Render(fmt.Sprintf("  The correct answer is: %s", q.Options[q.Answer]))
+			b.WriteString(correctAnswer + "\n\n")
 		}
 
+		// Explanation
 		if q.Explanation != "" {
-			b.WriteString("\n")
-			explanationBox := m.styles.CalloutTip.Width(width - 4).Render(
+			explanationBox := m.styles.CalloutTip.Width(width - 6).Render(
 				"💡 Explanation\n\n" + q.Explanation,
 			)
-			b.WriteString("  " + explanationBox + "\n")
+			b.WriteString("  " + explanationBox + "\n\n")
 		}
 
-		continueHint := m.styles.Muted.Render("\n  Press Enter to continue...")
+		// Show score
+		correctCount := 0
+		for qID, ans := range m.quizAnswers {
+			for _, question := range step.Questions {
+				if question.ID == qID && ans == question.Answer {
+					correctCount++
+				}
+			}
+		}
+		score := lipgloss.NewStyle().
+			Foreground(m.styles.Theme.Primary).
+			Render(fmt.Sprintf("  📊 Score: %d/%d correct", correctCount, len(m.quizAnswers)))
+		b.WriteString(score + "\n\n")
+
+		continueHint := m.styles.Muted.Render("  Press Enter to continue...")
 		b.WriteString(continueHint + "\n")
+
+	} else {
+		// Help text for navigation
+		helpBox := m.styles.HintBox.Width(width - 6).Render(
+			"⌨️  Use ↑↓ or j/k to navigate\n" +
+				"   Press Enter to submit your answer",
+		)
+		b.WriteString("  " + helpBox + "\n")
 	}
 
 	return b.String()

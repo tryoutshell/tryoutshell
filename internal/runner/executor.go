@@ -15,10 +15,20 @@ import (
 )
 
 type CommandResult struct {
-	Output   string
-	ExitCode int
-	Duration time.Duration
-	Error    error
+	Command        string
+	Output         string
+	ExitCode       int
+	Duration       time.Duration
+	Error          error
+	WorkingDir     string
+	ValidationInfo ValidationResult
+}
+type ValidationResult struct {
+	Passed         bool
+	ValidationType string
+	Expected       interface{}
+	Actual         interface{}
+	Details        []string
 }
 
 type Runner struct {
@@ -29,11 +39,14 @@ type Runner struct {
 }
 
 func NewRunner() *Runner {
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "."
+	}
 	// Create a temporary sandbox directory
 	sandboxDir, err := os.MkdirTemp("", "tryoutshell-*")
 	if err != nil {
 		// Fallback to current directory if temp creation fails
-		cwd, _ := os.Getwd()
 		return &Runner{
 			workingDir:        cwd,
 			sandboxDir:        "",
@@ -162,14 +175,22 @@ func (r *Runner) setupGitLesson() error {
 func (r *Runner) Execute(command string, timeout int) CommandResult {
 	start := time.Now()
 
+	result := CommandResult{
+		Command:    command,
+		WorkingDir: r.workingDir,
+	}
 	// Safety check
 	if r.isDangerous(command) {
-		return CommandResult{
-			Output:   "❌ Command blocked for security reasons",
-			Error:    fmt.Errorf("command blocked for safety"),
-			Duration: time.Since(start),
-			ExitCode: 1,
-		}
+		result.Output = "Command blocked for security reasons"
+		result.Error = fmt.Errorf("command blocked for safety")
+		result.Duration = time.Since(start)
+		result.ExitCode = 126 // Command cannot execute
+		return result
+	}
+
+	// Handle special debug commands
+	if strings.HasPrefix(command, ":") {
+		return r.handleDebugCommand(command)
 	}
 
 	// Set timeout
@@ -190,10 +211,10 @@ func (r *Runner) Execute(command string, timeout int) CommandResult {
 		"TMPDIR="+filepath.Join(r.workingDir, "temp"),
 	)
 
-	// Add COSIGN_PASSWORD for cosign commands to work non-interactively
-	if strings.Contains(command, "cosign") {
-		env = append(env, "COSIGN_PASSWORD=test123")
-	}
+	// // Add COSIGN_PASSWORD for cosign commands to work non-interactively
+	// if strings.Contains(command, "cosign") {
+	// 	env = append(env, "COSIGN_PASSWORD=test123")
+	// }
 
 	cmd.Env = env
 
@@ -206,41 +227,106 @@ func (r *Runner) Execute(command string, timeout int) CommandResult {
 	// Combine output
 	output := stdout.String()
 	if stderr.Len() > 0 {
-		stderrStr := stderr.String()
-
-		// Filter out the password prompt from stderr for cosign
-		if strings.Contains(command, "cosign") {
-			stderrStr = strings.ReplaceAll(stderrStr, "Enter password for private key: ", "")
-			stderrStr = strings.TrimSpace(stderrStr)
+		if output != "" {
+			output += "\n"
 		}
-
-		// Check for common permission issues and provide helpful messages
-		if strings.Contains(stderrStr, "Permission denied") ||
-			strings.Contains(stderrStr, "Read-only file system") {
-			output = r.enhancePermissionError(stderrStr, command)
-		} else if stderrStr != "" {
-			if output != "" {
-				output += "\n"
-			}
-			output += stderrStr
-		}
+		output += stderr.String()
 	}
 
 	exitCode := 0
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
+		} else if ctx.Err() == context.DeadlineExceeded {
+			exitCode = 124 // Timeout
+			output += fmt.Sprintf("\n\nCommand timed out after %d seconds", timeout)
 		} else {
 			exitCode = 1
 		}
 	}
 
-	return CommandResult{
-		Output:   strings.TrimSpace(output),
-		ExitCode: exitCode,
-		Duration: time.Since(start),
-		Error:    err,
+	result.Output = strings.TrimSpace(output)
+	result.ExitCode = exitCode
+	result.Duration = time.Since(start)
+	result.Error = err
+
+	return result
+}
+
+// handleDebugCommand handles special debug commands
+func (r *Runner) handleDebugCommand(command string) CommandResult {
+	result := CommandResult{
+		Command:    command,
+		WorkingDir: r.workingDir,
+		Duration:   time.Millisecond,
+		ExitCode:   0,
 	}
+
+	switch command {
+	case ":pwd":
+		result.Output = r.workingDir
+
+	case ":ls":
+		files, err := os.ReadDir(r.workingDir)
+		if err != nil {
+			result.Output = fmt.Sprintf("Error reading directory: %v", err)
+			result.ExitCode = 1
+			return result
+		}
+
+		var output strings.Builder
+		output.WriteString(fmt.Sprintf("Directory: %s\n\n", r.workingDir))
+
+		if len(files) == 0 {
+			output.WriteString("(empty directory)\n")
+		} else {
+			output.WriteString("Files:\n")
+			for _, file := range files {
+				info, _ := file.Info()
+				perms := info.Mode().String()
+				size := info.Size()
+				name := file.Name()
+
+				if file.IsDir() {
+					output.WriteString(fmt.Sprintf("  %s  %8d  %s/\n", perms, size, name))
+				} else {
+					output.WriteString(fmt.Sprintf("  %s  %8d  %s\n", perms, size, name))
+				}
+			}
+		}
+		result.Output = output.String()
+
+	case ":state":
+		result.Output = fmt.Sprintf("Working Directory: %s\n\n", r.workingDir)
+
+		// Show current directory contents
+		files, err := os.ReadDir(r.workingDir)
+		if err != nil {
+			result.Output += fmt.Sprintf("Error: %v\n", err)
+		} else {
+			result.Output += "Files in directory:\n"
+			if len(files) == 0 {
+				result.Output += "  (none)\n"
+			} else {
+				for _, file := range files {
+					if file.IsDir() {
+						result.Output += fmt.Sprintf("  📁 %s/\n", file.Name())
+					} else {
+						result.Output += fmt.Sprintf("  📄 %s\n", file.Name())
+					}
+				}
+			}
+		}
+
+	case ":env":
+		env := os.Environ()
+		result.Output = strings.Join(env, "\n")
+
+	default:
+		result.Output = fmt.Sprintf("Unknown debug command: %s\n\nAvailable commands:\n  :pwd   - Show working directory\n  :ls    - List files\n  :env   - Show environment\n  :state - Show lesson state", command)
+	}
+
+	return result
 }
 
 // enhancePermissionError provides helpful hints for permission errors
@@ -291,8 +377,14 @@ func (r *Runner) enhancePermissionError(stderr, command string) string {
 	return strings.Join(hints, "\n")
 }
 
-// Verify checks if command output matches expectations
-func (r *Runner) Verify(result CommandResult, validation lessons_pkg.ValidationType) bool {
+// Verify checks if command output matches expectations WITH DETAILED FEEDBACK
+func (r *Runner) Verify(result CommandResult, validation lessons_pkg.ValidationType) (CommandResult, bool) {
+	validationResult := ValidationResult{
+		ValidationType: validation.Type,
+	}
+
+	var passed bool
+
 	switch validation.Type {
 	case "regex":
 		pattern := validation.Pattern
@@ -301,55 +393,126 @@ func (r *Runner) Verify(result CommandResult, validation lessons_pkg.ValidationT
 		}
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			return false
+			validationResult.Details = append(validationResult.Details,
+				fmt.Sprintf("Invalid regex pattern: %v", err))
+			passed = false
+		} else {
+			passed = re.MatchString(result.Output)
+			validationResult.Expected = pattern
+			validationResult.Actual = result.Output
+
+			if !passed {
+				validationResult.Details = append(validationResult.Details,
+					fmt.Sprintf("Output does not match regex pattern: %s", pattern))
+			}
 		}
-		return re.MatchString(result.Output)
 
 	case "substring":
+		expected := validation.Contains
+		validationResult.Expected = expected
+
 		if validation.CaseInsensitive {
-			return strings.Contains(
+			passed = strings.Contains(
 				strings.ToLower(result.Output),
-				strings.ToLower(validation.Contains),
+				strings.ToLower(expected),
 			)
+		} else {
+			passed = strings.Contains(result.Output, expected)
 		}
-		return strings.Contains(result.Output, validation.Contains)
+
+		if !passed {
+			validationResult.Details = append(validationResult.Details,
+				fmt.Sprintf("Expected substring '%s' not found in output", expected))
+			validationResult.Actual = result.Output
+		}
 
 	case "exit_code":
-		return result.ExitCode == validation.Expected
+		expected := validation.Expected
+		actual := result.ExitCode
+		passed = actual == expected
+
+		validationResult.Expected = expected
+		validationResult.Actual = actual
+
+		if !passed {
+			validationResult.Details = append(validationResult.Details,
+				fmt.Sprintf("Expected exit code %d, got %d", expected, actual))
+		}
 
 	case "file_exists":
-		for _, file := range validation.Files {
-			filePath := file
-			if !filepath.IsAbs(file) {
-				filePath = filepath.Join(r.workingDir, file)
-			}
+		validationResult.Expected = validation.Files
+		var foundFiles []string
+		var missingFiles []string
 
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
-				return false
+		for _, file := range validation.Files {
+			fullPath := filepath.Join(r.workingDir, file)
+			if _, err := os.Stat(fullPath); err == nil {
+				foundFiles = append(foundFiles, file)
+			} else {
+				missingFiles = append(missingFiles, file)
 			}
 		}
-		return true
+
+		passed = len(missingFiles) == 0
+		validationResult.Actual = foundFiles
+
+		if !passed {
+			validationResult.Details = append(validationResult.Details,
+				fmt.Sprintf("Missing files: %v", missingFiles))
+			validationResult.Details = append(validationResult.Details,
+				fmt.Sprintf("Found files: %v", foundFiles))
+		}
 
 	case "output_contains":
-		matchCount := 0
+		validationResult.Expected = validation.Patterns
+		var matchedPatterns []string
+		var unmatchedPatterns []string
+
 		for _, pattern := range validation.Patterns {
 			if strings.Contains(result.Output, pattern) {
-				matchCount++
+				matchedPatterns = append(matchedPatterns, pattern)
 				if validation.AnyMatch {
-					return true
+					passed = true
+					break
 				}
+			} else {
+				unmatchedPatterns = append(unmatchedPatterns, pattern)
 			}
 		}
 
 		if validation.AllMatch {
-			return matchCount == len(validation.Patterns)
+			passed = len(unmatchedPatterns) == 0
 		}
 
-		return matchCount > 0
+		validationResult.Actual = matchedPatterns
+
+		if !passed {
+			if validation.AnyMatch {
+				validationResult.Details = append(validationResult.Details,
+					"None of the expected patterns found in output")
+			} else {
+				validationResult.Details = append(validationResult.Details,
+					fmt.Sprintf("Missing patterns: %v", unmatchedPatterns))
+			}
+		}
 
 	default:
-		return result.ExitCode == 0
+		// No validation specified, check exit code
+		passed = result.ExitCode == 0
+		validationResult.ValidationType = "exit_code"
+		validationResult.Expected = 0
+		validationResult.Actual = result.ExitCode
+
+		if !passed {
+			validationResult.Details = append(validationResult.Details,
+				fmt.Sprintf("Command failed with exit code %d", result.ExitCode))
+		}
 	}
+
+	validationResult.Passed = passed
+	result.ValidationInfo = validationResult
+
+	return result, passed
 }
 
 // isDangerous checks if command contains dangerous patterns
@@ -406,4 +569,12 @@ func (r *Runner) ListFiles() ([]string, error) {
 	})
 
 	return files, err
+}
+
+func (r *Runner) SetWorkingDir(dir string) error {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return fmt.Errorf("directory does not exist: %s", dir)
+	}
+	r.workingDir = dir
+	return nil
 }
