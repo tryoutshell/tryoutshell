@@ -113,7 +113,8 @@ type Model struct {
 	quitting bool
 
 	// Runner
-	runner *runner.Runner
+	runner      *runner.Runner
+	sandboxInfo string
 }
 
 // NewModel creates a new model
@@ -123,11 +124,24 @@ func NewModel(orgID, lessonID string, lesson lessons_pkg.LessonFormat) Model {
 	ti.Focus()
 	ti.CharLimit = 512
 	ti.Width = 80
-	ti.Prompt = ""                          // We handle prompt in rendering
-	ti.SetCursorMode(textinput.CursorBlink) // Make cursor blink for visibility
+	ti.Prompt = ""
+	ti.SetCursorMode(textinput.CursorBlink)
 
 	theme := GetTheme("default")
 	styles := NewStyles(theme)
+
+	// NEW: Create runner and setup sandbox
+	r := runner.NewRunner()
+	sandboxInfo := ""
+	if r.IsSandboxed() {
+		sandboxInfo = fmt.Sprintf("🏖️  Sandbox: %s", r.GetWorkingDir())
+
+		if err := r.SetupLesson(lessonID); err != nil {
+			sandboxInfo += fmt.Sprintf("\n⚠️  Setup warning: %v", err)
+		}
+	} else {
+		sandboxInfo = "⚠️  Running in current directory (sandbox creation failed)"
+	}
 
 	return Model{
 		state:          StateIntroduction,
@@ -141,7 +155,8 @@ func NewModel(orgID, lessonID string, lesson lessons_pkg.LessonFormat) Model {
 		stepState:      StepPending,
 		quizAnswers:    make(map[string]int),
 		selectedOption: 0,
-		runner:         runner.NewRunner(),
+		runner:         r,           // CHANGED
+		sandboxInfo:    sandboxInfo, // NEW
 	}
 }
 
@@ -172,7 +187,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Global keys that work everywhere
 		if key.Matches(msg, keys.Quit) {
 			m.quitting = true
-			return m, tea.Quit
+			return m, tea.Batch(
+				tea.Quit,
+				cleanupSandbox(m.runner), // Clean up before quitting
+			)
 		}
 
 		// Special handling for quiz steps
@@ -313,6 +331,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+// Add a cleanup message type
+type CleanupCompleteMsg struct{}
+
+func cleanupSandbox(r *runner.Runner) tea.Cmd {
+	return func() tea.Msg {
+		r.Cleanup()
+		return CleanupCompleteMsg{}
+	}
 }
 
 // handleEnter processes Enter key

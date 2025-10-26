@@ -185,7 +185,7 @@ steps:
       Let's generate a test key pair. Cosign will ask you for a password -
       use something simple like `test123` (this is just for learning).
 
-    example: "cosign generate-key-pair"
+    example: "COSIGN_PASSWORD=test123 cosign generate-key-pair"
 
     validation:
       type: "file_exists"
@@ -225,49 +225,158 @@ steps:
         3. Upload the signature to the registry (as `<image>.sig`)
 
   - type: command
-    id: "sign-image"
-    prompt: "Sign a container image"
+    id: "create-artifact"
+    prompt: "Create a file to sign"
 
     pre_content: |
-      Let's sign the `gcr.io/distroless/static:latest` image.
+      Instead of signing a container image (which requires registry access),
+      let's sign a file. This demonstrates the same cryptographic concepts!
+      
+      First, let's create a sample artifact that represents a release binary.
 
-      You'll be prompted for your key password (the one you set earlier).
+    example: "echo 'MyApp v1.0.0 - Production Release' > myapp-release.txt"
 
-    example:
-      "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+    validation:
+      type: "file_exists"
+      files:
+        - "myapp-release.txt"
 
-      # Allow variations
+    post_content: |
+      ✅ Artifact created! In real-world scenarios, this could be:
+      - A compiled binary
+      - A release tarball
+      - A configuration file
+      - Any file you want to ensure integrity of
+
+    timeout: 10
+    allow_skip: false
+
+  - type: command
+    id: "sign-artifact"
+    prompt: "Sign the artifact"
+
+    pre_content: |
+      Now let's sign our artifact using the private key we generated.
+      This creates a cryptographic signature that proves:
+      1. You created this file
+      2. The file hasn't been tampered with
+
+    example: "cosign sign-blob --key cosign.key myapp-release.txt > myapp-release.txt.sig"
+
     accepted_commands:
-      - "cosign sign --key cosign.key gcr.io/distroless/static:latest"
-      - "cosign sign --key cosign.key gcr.io/distroless/static"
-      - "cosign sign --key ./cosign.key gcr.io/distroless/static:latest"
+      - "cosign sign-blob --key cosign.key myapp-release.txt > myapp-release.txt.sig"
+      - "cosign sign-blob --key ./cosign.key myapp-release.txt > myapp-release.txt.sig"
+      - "cosign sign-blob --key cosign.key myapp-release.txt"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "myapp-release.txt.sig"
+
+    alternative_validations:
+      - type: "output_contains"
+        patterns:
+          - "MEU"  # Signature starts with MEU in base64
+          - "MEY"  # Or MEY
+        any_match: true
+
+    post_content: |
+      🎉 **Artifact signed!** The signature is now in myapp-release.txt.sig
+      
+      This signature file can be distributed alongside your artifact.
+      Anyone with your public key can verify it came from you.
+
+    success_msg: "✅ Artifact signed successfully!"
+    fail_msg: "❌ Signing failed. Check that cosign.key exists."
+
+    hints:
+      - level: 1
+        text: "Use: cosign sign-blob --key cosign.key <filename>"
+      - level: 2
+        text: "Redirect output to a .sig file using >"
+      - level: 3
+        text: "Full command: cosign sign-blob --key cosign.key myapp-release.txt > myapp-release.txt.sig"
+
+    timeout: 30
+    allow_skip: true
+
+  - type: command
+    id: "verify-signature"
+    prompt: "Verify the signature"
+
+    pre_content: |
+      Now let's verify the signature using the PUBLIC key.
+      This proves that the file hasn't been modified since signing.
+
+    example: "cosign verify-blob --key cosign.pub --signature myapp-release.txt.sig myapp-release.txt"
+
+    accepted_commands:
+      - "cosign verify-blob --key cosign.pub --signature myapp-release.txt.sig myapp-release.txt"
+      - "cosign verify-blob --key ./cosign.pub --signature myapp-release.txt.sig myapp-release.txt"
 
     validation:
       type: "output_contains"
       patterns:
-        - "Pushing signature to"
-        - "Successfully signed"
-      any_match: true # Match any of the patterns
+        - "Verified OK"
+      any_match: false
 
     post_content: |
-      🎉 **Image signed!** The signature is now stored in the registry.
+      ✅ **Signature verified!** 
+      
+      The "Verified OK" message confirms:
+      - The file was signed with the private key
+      - The file hasn't been modified since signing
+      - The signature is cryptographically valid
 
-      Notice the output shows where the signature was pushed. Cosign stores
-      signatures as OCI artifacts alongside the original image.
+    success_msg: "✅ Signature verification successful!"
+    fail_msg: "❌ Verification failed. Make sure the signature file exists."
 
-    success_msg: "✅ Image signed successfully!"
-    fail_msg: "❌ Signing failed. Did you enter the correct password?"
-
-    hints:
-      - level: 1
-        text: "Make sure to include --key cosign.key"
-      - level: 2
-        text: "Enter the password you set during key generation"
-      - level: 3
-        text: "Full command: cosign sign --key cosign.key gcr.io/distroless/static:latest"
-
-    timeout: 60
+    timeout: 20
     allow_skip: true
+#  - type: command
+#    id: "sign-image"
+#    prompt: "Sign a container image"
+#
+#    pre_content: |
+#      Let's sign the `gcr.io/distroless/static:latest` image.
+#
+#      You'll be prompted for your key password (the one you set earlier).
+#
+#    example:
+#      "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+#
+#      # Allow variations
+#    accepted_commands:
+#      - "cosign sign --key cosign.key gcr.io/distroless/static:latest"
+#      - "cosign sign --key cosign.key gcr.io/distroless/static"
+#      - "cosign sign --key ./cosign.key gcr.io/distroless/static:latest"
+#
+#    validation:
+#      type: "output_contains"
+#      patterns:
+#        - "Pushing signature to"
+#        - "Successfully signed"
+#      any_match: true # Match any of the patterns
+#
+#    post_content: |
+#      🎉 **Image signed!** The signature is now stored in the registry.
+#
+#      Notice the output shows where the signature was pushed. Cosign stores
+#      signatures as OCI artifacts alongside the original image.
+#
+#    success_msg: "✅ Image signed successfully!"
+#    fail_msg: "❌ Signing failed. Did you enter the correct password?"
+#
+#    hints:
+#      - level: 1
+#        text: "Make sure to include --key cosign.key"
+#      - level: 2
+#        text: "Enter the password you set during key generation"
+#      - level: 3
+#        text: "Full command: cosign sign --key cosign.key gcr.io/distroless/static:latest"
+#
+#    timeout: 60
+#    allow_skip: true
 
   # === SECTION 6: Verification ===
 

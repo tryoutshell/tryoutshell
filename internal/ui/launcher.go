@@ -26,8 +26,9 @@ func LaunchInteractive(orgID, lessonID string) error {
 
 	// Run the program
 	if _, err := p.Run(); err != nil {
+		m.runner.Cleanup()
 		return fmt.Errorf("error running program: %w", err)
 	}
-
+	m.runner.Cleanup()
 	return nil
 }
