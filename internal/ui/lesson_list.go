@@ -107,12 +107,12 @@ func NewLessonListModel(orgID, orgName string, lessons []lessons_pkg.LessonMetad
 	for i, lesson := range lessons {
 		items[i] = LessonItem{metadata: lesson}
 	}
-
+	totalLessons := len(lessons)
 	const defaultWidth = 100
 	const listHeight = 20
 
 	l := list.New(items, lessonItemDelegate{}, defaultWidth, listHeight)
-	l.Title = fmt.Sprintf("Select a Lesson from %s", orgName)
+	l.Title = fmt.Sprintf("Select a Lesson from %s | Total Lessons: %d", orgName, totalLessons)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.Styles.Title = lessonTitleStyle

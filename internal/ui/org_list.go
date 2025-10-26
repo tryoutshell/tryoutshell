@@ -110,6 +110,9 @@ func (m OrgListModel) View() string {
 	if m.quitting {
 		return ""
 	}
+	if m.state == ListStateOrganizations {
+		return m.renderOrganizations()
+	}
 	return "\n" + m.list.View()
 }
 
