@@ -1,5 +1,7 @@
 package ui
 
+import "github.com/common-nighthawk/go-figure"
+
 var orgASCII = map[string]string{
 	"sigstore": `
    _____ _           _
@@ -38,9 +40,36 @@ var orgASCII = map[string]string{
      \/  \/   |_|\__|_| |_|\___||___/___/`,
 }
 
+//	func GetOrgASCII(orgID string) string {
+//		if ascii, ok := orgASCII[orgID]; ok {
+//			return ascii
+//		}
+//		return orgID // Fallback to org name
+//	}
+
+// GetOrgASCII generates ASCII art for organization name
 func GetOrgASCII(orgID string) string {
-	if ascii, ok := orgASCII[orgID]; ok {
-		return ascii
+	// Map org IDs to display names
+	displayNames := map[string]string{
+		"sigstore":   "Sigstore",
+		"chainguard": "Chainguard",
+		"in-toto":    "In-Toto",
+		"witness":    "Witness",
 	}
-	return orgID // Fallback to org name
+
+	displayName := displayNames[orgID]
+	if displayName == "" {
+		displayName = orgID
+	}
+
+	// Generate ASCII art using go-figure
+	// Using "standard" font for clean look
+	myFigure := figure.NewFigure(displayName, "standard", true)
+	return myFigure.String()
+}
+
+// GetAppBanner generates TryOutShell banner
+func GetAppBanner() string {
+	myFigure := figure.NewFigure("TryOutShell", "standard", true)
+	return myFigure.String()
 }

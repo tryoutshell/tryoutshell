@@ -13,15 +13,28 @@ import (
 // renderIntroduction renders the introduction screen
 func (m Model) renderIntroduction() string {
 	var b strings.Builder
-
+	asciiWidth := m.getContentWidth()
 	orgASCII := GetOrgASCII(m.orgID)
 	asciiStyle := lipgloss.NewStyle().
 		// Foreground(m.styles.Theme.Primary).
 		Foreground(lipgloss.Color("39")).
 		Bold(true).
+		Width(asciiWidth).
 		Align(lipgloss.Center)
 
-	b.WriteString(asciiStyle.Render(orgASCII) + "\n\n")
+	/*
+		 banner := getBanner()
+			bannerStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("39")).
+				// Foreground(lipgloss.Color("170")).
+				Bold(true).
+				Align(lipgloss.Center)
+
+			renderedBanner := bannerStyle.Render(banner)
+	*/
+
+	trimmed := strings.TrimRight(orgASCII, "\n") // remove trailing blank lines
+	b.WriteString(asciiStyle.Render(trimmed) + "\n\n")
 
 	title := lipgloss.NewStyle().
 		Bold(true).

@@ -1,0 +1,83 @@
+metadata:
+  id: "getting-started"
+  org: "in-toto"
+  title: "Container Image Signing with Cosign"
+  description: "Learn to sign and verify container images for supply chain security"
+  difficulty: "beginner"
+  duration: "20 min"
+  prerequisites:
+    - "Docker installed"
+    - "Basic understanding of containers"
+  tags: ["cosign", "signing", "supply-chain"]
+  author: "By @rahulxf"
+  version: "1.0"
+  resources:
+    - title: "Cosign Documentation"
+      url: "https://docs.sigstore.dev/cosign/overview"
+      type: "docs"
+    - title: "Sigstore Blog"
+      url: "https://blog.sigstore.dev"
+      type: "blog"
+    - title: "Cosign GitHub"
+      url: "https://github.com/sigstore/cosign"
+      type: "github"
+
+# Introduction section (shown once at start)
+introduction:
+  title: "What You'll Learn"
+  content: |
+    In this lesson, you will:
+    - Understand what Cosign is and why image signing matters
+    - Install and verify Cosign
+    - Sign a container image with ephemeral keys
+    - Verify signatures to ensure image integrity
+
+    **Time:** ~20 minutes
+    **Tools:** Cosign, Docker
+
+# Main lesson flow
+steps:
+  # === SECTION 1: Understanding Cosign ===
+
+  - type: info
+    title: "What is Cosign?"
+    content: |
+      **Cosign** is a tool for signing and verifying container images and other artifacts.
+
+      Think of it like a digital signature for software packages - it proves:
+      - **Who** created the image (authenticity)
+      - **What** exact image you're running (integrity)
+      - **When** it was signed (provenance)
+
+      ### Why Does This Matter?
+
+      Without signing, you can't be sure that `myapp:latest` hasn't been tampered with
+      between the registry and your production cluster. An attacker could:
+      - Replace your image with malicious code
+      - Inject backdoors during CI/CD
+      - Modify dependencies without detection
+
+      Cosign prevents this by creating cryptographic signatures that are nearly
+      impossible to forge.
+
+      > 💡 **Fun Fact**: Cosign is part of the Sigstore project, which also includes
+      > Fulcio (certificate authority) and Rekor (transparency log).
+
+    # Highlight specific terms/commands in the UI
+    highlights:
+      - text: "myapp:latest"
+        style: "code"
+      - text: "Sigstore"
+        style: "bold"
+      - text: "Client"
+        style: "code"
+
+    # Optional: Show a diagram (ASCII art)
+    diagram: |
+      Registry              Cosign                Your Cluster
+      ┌────────┐            ┌──────┐             ┌───────────┐
+      │ Image  │───sign────▶│ .sig │────verify──▶│ ✓ Deploy  │
+      └────────┘            └──────┘             └───────────┘
+
+    # User must explicitly continue (prevents info overload)
+    wait_for_continue: true
