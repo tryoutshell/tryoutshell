@@ -16,10 +16,11 @@ var (
 	lessonItemStyle         = lipgloss.NewStyle().PaddingLeft(4)
 	lessonSelectedItemStyle = lipgloss.NewStyle().
 				PaddingLeft(2).
-				Foreground(lipgloss.Color("170")).
-				BorderLeft(true).
-				BorderStyle(lipgloss.NormalBorder()).
-				BorderForeground(lipgloss.Color("170"))
+		// Foreground(lipgloss.Color("170")).
+		Foreground(lipgloss.Color("39")).
+		BorderLeft(true).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("170"))
 )
 
 type LessonItem struct {

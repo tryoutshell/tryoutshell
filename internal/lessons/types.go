@@ -8,16 +8,22 @@ type LessonFormat struct {
 }
 
 type MetadataType struct {
-	ID            string   `yaml:"id"`
-	Org           string   `yaml:"org"`
-	Title         string   `yaml:"title"`
-	Description   string   `yaml:"description"`
-	Difficulty    string   `yaml:"difficulty"`
-	Duration      string   `yaml:"duration"`
-	Prerequisites []string `yaml:"prerequisites"`
-	Tags          []string `yaml:"tags"`
-	Author        string   `yaml:"author"`
-	Version       string   `yaml:"version"`
+	ID            string         `yaml:"id"`
+	Org           string         `yaml:"org"`
+	Title         string         `yaml:"title"`
+	Description   string         `yaml:"description"`
+	Difficulty    string         `yaml:"difficulty"`
+	Duration      string         `yaml:"duration"`
+	Prerequisites []string       `yaml:"prerequisites"`
+	Tags          []string       `yaml:"tags"`
+	Author        string         `yaml:"author"`
+	Version       string         `yaml:"version"`
+	Resources     []ResourceType `yaml:"resources"`
+}
+type ResourceType struct {
+	Title string `yaml:"title"`
+	URL   string `yaml:"url"`
+	Type  string `yaml:"type"` // "docs", "video", "tutorial", "github"
 }
 
 type IntroductionType struct {

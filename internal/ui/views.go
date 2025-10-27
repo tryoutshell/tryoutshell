@@ -14,28 +14,102 @@ import (
 func (m Model) renderIntroduction() string {
 	var b strings.Builder
 
+	orgASCII := GetOrgASCII(m.orgID)
+	asciiStyle := lipgloss.NewStyle().
+		// Foreground(m.styles.Theme.Primary).
+		Foreground(lipgloss.Color("39")).
+		Bold(true).
+		Align(lipgloss.Center)
+
+	b.WriteString(asciiStyle.Render(orgASCII) + "\n\n")
+
 	title := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(m.styles.Theme.Primary).
-		Padding(1, 2).
+		Align(lipgloss.Center).
 		Render(m.lesson.Metadata.Title)
 
 	b.WriteString(title + "\n\n")
 
-	meta := fmt.Sprintf("📚 %s  |  ⭐ %s  |  ⏱  %s",
+	meta := fmt.Sprintf("📚 %s  |  ⭐ %s  |  ⏱  %s  |  ✍️  %s",
 		m.lesson.Metadata.Author,
 		m.lesson.Metadata.Difficulty,
 		m.lesson.Metadata.Duration,
+		m.lesson.Metadata.Version,
 	)
-	b.WriteString(m.styles.HelpText.Render(meta) + "\n\n")
+	b.WriteString(m.styles.Muted.Render(meta) + "\n\n")
 
+	// introduction box
 	introBox := m.styles.Border.Width(m.getContentWidth()).Render(
 		m.styles.Bold.Render(m.lesson.Introduction.Title) + "\n\n" +
 			m.formatMarkdown(m.lesson.Introduction.Content),
 	)
 	b.WriteString(introBox + "\n")
 
+	// Resources section (clickable in some terminals)
+	// if len(m.lesson.Metadata.Resources) > 0 {
+	// 	resourcesHeader := m.styles.SubHeading.Render("📖 Resources:")
+	// 	b.WriteString(resourcesHeader + "\n\n")
+
+	// 	for _, resource := range m.lesson.Metadata.Resources {
+	// 		// Format as clickable link (works in iTerm2, modern terminals)
+	// 		icon := getResourceIcon(resource.Type)
+
+	// 		// OSC 8 hyperlink format: \033]8;;URL\033\\TEXT\033]8;;\033\\
+	// 		clickableLink := fmt.Sprintf("\033]8;;%s\033\\%s %s\033]8;;\033\\",
+	// 			resource.URL, icon, resource.Title)
+
+	// 		linkStyle := lipgloss.NewStyle().
+	// 			Foreground(lipgloss.Color("39")).
+	// 			Underline(true)
+
+	// 		b.WriteString("  " + linkStyle.Render(clickableLink) + "\n")
+	// 		b.WriteString("    " + m.styles.Muted.Render(resource.URL) + "\n\n")
+	// 	}
+	// }
+	if len(m.lesson.Metadata.Resources) > 0 {
+		resourcesHeader := m.styles.SubHeading.Render("📖 Resources:")
+		b.WriteString(resourcesHeader + "\n\n")
+
+		for _, resource := range m.lesson.Metadata.Resources {
+			icon := getResourceIcon(resource.Type)
+
+			// Clean format - no clickable mess
+			titleStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("39")).
+				Bold(true)
+
+			urlStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Italic(true)
+
+			b.WriteString(fmt.Sprintf("  %s %s\n",
+				icon, titleStyle.Render(resource.Title)))
+			b.WriteString(fmt.Sprintf("     %s\n\n",
+				urlStyle.Render(resource.URL)))
+		}
+	}
+
+	// Continue prompt
+	continueHint := m.styles.Muted.Render("\nPress Enter to begin...")
+	b.WriteString(continueHint + "\n")
+
 	return b.String()
+}
+
+func getResourceIcon(resourceType string) string {
+	icons := map[string]string{
+		"docs":     "📚",
+		"video":    "🎥",
+		"tutorial": "📝",
+		"github":   "🐙",
+		"blog":     "📰",
+	}
+
+	if icon, ok := icons[resourceType]; ok {
+		return icon
+	}
+	return "🔗"
 }
 
 // renderLesson renders the current lesson step

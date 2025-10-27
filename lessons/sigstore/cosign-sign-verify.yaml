@@ -13,6 +13,16 @@ metadata:
   tags: ["cosign", "signing", "supply-chain"]
   author: "By Rahul"
   version: "1.0"
+  resources:
+    - title: "Cosign Documentation"
+      url: "https://docs.sigstore.dev/cosign/overview"
+      type: "docs"
+    - title: "Sigstore Blog"
+      url: "https://blog.sigstore.dev"
+      type: "blog"
+    - title: "Cosign GitHub"
+      url: "https://github.com/sigstore/cosign"
+      type: "github"
 
 # Introduction section (shown once at start)
 introduction:
@@ -70,38 +80,6 @@ steps:
       ┌────────┐            ┌──────┐             ┌───────────┐
       │ Image  │───sign────▶│ .sig │────verify──▶│ ✓ Deploy  │
       └────────┘            └──────┘             └───────────┘
-
-      +---------------------------------------------------------------+
-      |                           `Client`                            |
-      |---------------------------------------------------------------|
-      |  docker build                                                 |
-      |  docker pull                                                  |
-      |  docker run                                                   |
-      +---------------------------------------------------------------+
-                       |
-                       |  (Docker CLI commands)
-                       v
-      +---------------------------------------------------------------+
-      |                         DOCKER_HOST                           |
-      |---------------------------------------------------------------|
-      |                         Docker Daemon                         |
-      |                                                               |
-      |  +------------------+       +-------------------------------+ |
-      |  |    Containers    |<----->|           Images              | |
-      |  |------------------|       |-------------------------------| |
-      |  |  [Container 1]   |       |  ubuntu:latest                | |
-      |  |  [Container 2]   |       |  redis:latest                 | |
-      |  |  [Container 3]   |       +-------------------------------+ |
-      |  +------------------+                                         |
-      +---------------------------------------------------------------+
-                       |
-                       |  (Pull/Push Images)
-                       v
-      +---------------------------------------------------------------+
-      |                           Registry                            |
-      |---------------------------------------------------------------|
-      |  ubuntu   |  centos   |  redis   |  nginx                     |
-      +---------------------------------------------------------------+
 
     # User must explicitly continue (prevents info overload)
     wait_for_continue: true

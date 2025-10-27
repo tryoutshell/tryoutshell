@@ -68,7 +68,7 @@ func NewOrgListModel(orgs []OrgItem) OrgListModel {
 	l := list.New(items, orgItemDelegate{}, defaultWidth, listHeight)
 	l.Title = "Select an Organization"
 	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
+	l.SetFilteringEnabled(true)
 	l.Styles.Title = titleStyle
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.HelpStyle = helpStyle
@@ -110,10 +110,34 @@ func (m OrgListModel) View() string {
 	if m.quitting {
 		return ""
 	}
-	if m.state == ListStateOrganizations {
-		return m.renderOrganizations()
-	}
-	return "\n" + m.list.View()
+
+	// Add banner at top
+	banner := getBanner()
+	bannerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("39")).
+		// Foreground(lipgloss.Color("170")).
+		Bold(true).
+		Align(lipgloss.Center)
+
+	renderedBanner := bannerStyle.Render(banner)
+
+	subtitle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Align(lipgloss.Center).
+		Render("🚀 Interactive DevOps Learning in Your Terminal")
+
+	return "\n" + renderedBanner + "\n" + subtitle + "\n\n" + m.list.View()
+}
+
+// Shared banner function
+func getBanner() string {
+	return `
+████████╗██████╗ ██╗   ██╗ ██████╗ ██╗   ██╗████████╗███████╗██╗  ██╗
+╚══██╔══╝██╔══██╗╚██╗ ██╔╝██╔═══██╗██║   ██║╚══██╔══╝██╔════╝██║  ██║
+   ██║   ██████╔╝ ╚████╔╝ ██║   ██║██║   ██║   ██║   ███████╗███████║
+   ██║   ██╔══██╗  ╚██╔╝  ██║   ██║██║   ██║   ██║   ╚════██║██╔══██║
+   ██║   ██║  ██║   ██║   ╚██████╔╝╚██████╔╝   ██║   ███████║██║  ██║
+   ╚═╝   ╚═╝  ╚═╝   ╚═╝    ╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚═╝  ╚═╝`
 }
 
 func (m OrgListModel) SelectedOrg() string {

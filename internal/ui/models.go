@@ -117,6 +117,8 @@ type Model struct {
 	sandboxInfo string
 	//  store full result
 	lastCommandResult runner.CommandResult
+
+	tabBar TabBar
 }
 
 // NewModel creates a new model
@@ -132,6 +134,14 @@ func NewModel(orgID, lessonID string, lesson lessons_pkg.LessonFormat) Model {
 	theme := GetTheme("default")
 	styles := NewStyles(theme)
 
+	// Create tab bar
+	tabBar := NewTabBar(
+		orgID,
+		lesson.Metadata.Title,
+		lesson.Metadata.Author,
+		lesson.Metadata.Version,
+		0, // Will be set on window size
+	)
 	// NEW: Create runner and setup sandbox
 	r := runner.NewRunner()
 	sandboxInfo := ""
@@ -159,6 +169,7 @@ func NewModel(orgID, lessonID string, lesson lessons_pkg.LessonFormat) Model {
 		selectedOption: 0,
 		runner:         r,           // CHANGED
 		sandboxInfo:    sandboxInfo, // NEW
+		tabBar:         tabBar,
 	}
 }
 
@@ -576,10 +587,12 @@ func (m Model) View() string {
 
 // renderHeader renders the top header
 func (m Model) renderHeader() string {
-	title := m.styles.AppTitle.Width(m.width).Render(
-		fmt.Sprintf("TryOutShell | %s - %s", m.lesson.Metadata.Org, m.lesson.Metadata.Title),
-	)
-	return title
+	// title := m.styles.AppTitle.Width(m.width).Render(
+	// 	fmt.Sprintf("TryOutShell | %s - %s", m.lesson.Metadata.Org, m.lesson.Metadata.Title),
+	// )
+	m.tabBar.width = m.width
+	return m.tabBar.Render()
+	// return title
 }
 
 // renderFooter renders the bottom footer
