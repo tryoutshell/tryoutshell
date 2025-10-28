@@ -118,7 +118,8 @@ type Model struct {
 	//  store full result
 	lastCommandResult runner.CommandResult
 
-	tabBar TabBar
+	tabBar        TabBar
+	viewportReady bool
 }
 
 // NewModel creates a new model
@@ -133,6 +134,8 @@ func NewModel(orgID, lessonID string, lesson lessons_pkg.LessonFormat) Model {
 
 	theme := GetTheme("default")
 	styles := NewStyles(theme)
+
+	vp := viewport.New(100, 20)
 
 	// Create tab bar
 	tabBar := NewTabBar(
@@ -170,6 +173,8 @@ func NewModel(orgID, lessonID string, lesson lessons_pkg.LessonFormat) Model {
 		runner:         r,           // CHANGED
 		sandboxInfo:    sandboxInfo, // NEW
 		tabBar:         tabBar,
+		viewport:       vp,
+		viewportReady:  false,
 	}
 }
 
@@ -224,6 +229,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.selectedOption > 0 {
 					m.selectedOption--
 					m.updateViewportContent()
+				} else {
+					// At top of quiz, scroll viewport up
+					m.viewport.LineUp(3)
 				}
 				return m, nil
 
@@ -234,6 +242,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.selectedOption < len(step.Questions[m.currentQuizQ].Options)-1 {
 					m.selectedOption++
 					m.updateViewportContent()
+				} else {
+					// At bottom of quiz, scroll viewport down
+					m.viewport.LineDown(3)
 				}
 				return m, nil
 
@@ -278,6 +289,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateViewportContent() // UPDATE VIEWPORT AFTER CURSOR MOVE
 				return m, cmd
 
+			case "pgup":
+				// Page up in viewport
+				m.viewport.ViewUp()
+				return m, nil
+
+			case "pgdown":
+				// Page down in viewport
+				m.viewport.ViewDown()
+				return m, nil
+
 			default:
 				// Pass all other keys to text input for typing
 				m.textInput, cmd = m.textInput.Update(msg)
@@ -304,7 +325,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Down):
 			m.viewport.LineDown(3)
 			return m, nil
+		case msg.String() == "pgup":
+			m.viewport.ViewUp()
+			return m, nil
 
+		case msg.String() == "pgdown":
+			m.viewport.ViewDown()
+			return m, nil
 		case key.Matches(msg, keys.Skip):
 			return m.handleSkip()
 		}
@@ -326,6 +353,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport = viewport.New(msg.Width, msg.Height-headerHeight-footerHeight)
 			m.viewport.YPosition = headerHeight
 			m.ready = true
+			m.viewportReady = true
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = msg.Height - headerHeight - footerHeight
@@ -561,7 +589,7 @@ func (m *Model) updateViewportContent() {
 
 // Fix the View() method
 func (m Model) View() string {
-	if !m.ready {
+	if !m.viewportReady {
 		return "\n  Initializing..."
 	}
 
@@ -620,6 +648,13 @@ func (m Model) renderFooter() string {
 
 	help := m.renderHelpText(step)
 	progress := m.renderProgressBar()
+	scrollInfo := ""
+	if m.viewport.TotalLineCount() > 0 {
+		scrollPercent := int(m.viewport.ScrollPercent() * 100)
+		scrollInfo = m.styles.Muted.Render(
+			fmt.Sprintf("  [Scroll: %d%%]", scrollPercent),
+		)
+	}
 
 	// Debug line (remove after fixing)
 	debug := m.styles.Muted.Render(fmt.Sprintf("  [Debug: State=%v | Step=%s | StepState=%s | QuizQ=%d | QuizOpt=%d]",
@@ -630,6 +665,7 @@ func (m Model) renderFooter() string {
 		progress,
 		help,
 		debug, // Remove this line after fixing
+		scrollInfo,
 	)
 
 	return m.styles.HelpText.Width(m.width).Render(footerContent)

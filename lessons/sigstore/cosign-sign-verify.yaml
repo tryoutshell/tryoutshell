@@ -62,6 +62,10 @@ steps:
       Cosign prevents this by creating cryptographic signatures that are nearly
       impossible to forge.
 
+      ```yaml
+      hello world
+      ```
+
       > 💡 **Fun Fact**: Cosign is part of the Sigstore project, which also includes
       > Fulcio (certificate authority) and Rekor (transparency log).
 
