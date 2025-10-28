@@ -3,13 +3,15 @@ module github.com/tryoutshell/tryoutshell
 go 1.24.2
 
 require (
+	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/charmbracelet/bubbles v0.21.0
+	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
 	github.com/spf13/cobra v1.10.1
 )
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
-	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 )
 
