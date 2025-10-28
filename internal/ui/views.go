@@ -278,6 +278,29 @@ func (m Model) renderCommandStep(step lessons_pkg.StepType) string {
 	return b.String()
 }
 
+// detectOutputLanguage tries to guess the language of command output
+func detectOutputLanguage(output string) string {
+	trimmed := strings.TrimSpace(output)
+
+	// Check for JSON
+	if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+		return "json"
+	}
+
+	// Check for YAML
+	if strings.Contains(trimmed, ":\n") || strings.Contains(trimmed, ": ") {
+		return "yaml"
+	}
+
+	// Check for XML
+	if strings.HasPrefix(trimmed, "<") {
+		return "xml"
+	}
+
+	// Default to bash/terminal
+	return "terminal"
+}
+
 // Render full error details with debugging context
 func (m Model) renderFullErrorDetails(step lessons_pkg.StepType, result runner.CommandResult) string {
 	var b strings.Builder
@@ -656,10 +679,10 @@ func (m Model) renderProgressBar() string {
 func (m Model) renderCodeBlock(block lessons_pkg.CodeBlockType) string {
 	width := m.getContentWidth()
 
-	header := m.styles.Bold.Render(block.Label)
-	code := block.Code
+	// header := m.styles.Bold.Render(block.Label)
+	// code := block.Code
 
-	return m.styles.CodeBlock.Width(width).Render(header + "\n\n" + code)
+	return RenderCodeBlock(block.Code, block.Language, block.Label, width-4)
 }
 
 func (m Model) renderCallout(callout lessons_pkg.CalloutType) string {
@@ -759,22 +782,49 @@ func (m Model) formatMarkdown(text string) string {
 	lines := strings.Split(text, "\n")
 	var formatted []string
 	inCodeBlock := false
+	codeBlockLang := ""
+	var codeBlockLines []string
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
 		// Code blocks (```)
 		if strings.HasPrefix(trimmed, "```") {
-			inCodeBlock = !inCodeBlock
+			if !inCodeBlock {
+				// Start of code block
+				inCodeBlock = true
+				codeBlockLang = strings.TrimPrefix(trimmed, "```")
+				if codeBlockLang == "" {
+					codeBlockLang = "text"
+				}
+				codeBlockLines = []string{}
+			} else {
+				// End of code block - render it
+				codeContent := strings.Join(codeBlockLines, "\n")
+				formatted = append(formatted, "")
+				formatted = append(formatted,
+					RenderCodeBlock(codeContent, codeBlockLang, "", m.getContentWidth()-4))
+				formatted = append(formatted, "")
+				inCodeBlock = false
+				codeBlockLines = []string{}
+			}
 			continue
 		}
+		// if strings.HasPrefix(trimmed, "```") {
+		// 	inCodeBlock = !inCodeBlock
+		// 	continue
+		// }
 
+		// if inCodeBlock {
+		// 	// Render code block line
+		// 	codeLine := lipgloss.NewStyle().
+		// 		Foreground(lipgloss.Color("252")).
+		// 		Render("  " + line)
+		// 	formatted = append(formatted, codeLine)
+		// 	continue
+		// }
 		if inCodeBlock {
-			// Render code block line
-			codeLine := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("252")).
-				Render("  " + line)
-			formatted = append(formatted, codeLine)
+			codeBlockLines = append(codeBlockLines, line)
 			continue
 		}
 
