@@ -7,7 +7,7 @@ const config = {
   tagline: "Learn by doing — directly in your terminal",
   favicon: "/img/favicon.ico",
 
-  url: "https://tryoutshell.dev", // your domain
+  url: "https://tryoutshell.netlify.app", // your domain
   baseUrl: "/",
 
   organizationName: "tryoutshell", // GitHub org/user
