@@ -184,7 +184,7 @@ steps:
       
       The basic syntax is:
       ```
-      witness run [attestor-options] -- <your-command>
+      witness run --step <step-name> [options] -- <your-command>
       ```
 
       Witness will:
@@ -192,6 +192,8 @@ steps:
       2. Collect evidence using attestors
       3. Create a signed attestation
       4. Output the attestation (in-toto format)
+
+      The `--step` flag identifies which step in your supply chain this attestation represents.
 
       Let's start with a simple example!
 
@@ -248,17 +250,17 @@ steps:
     prompt: "Run your first attestation"
 
     pre_content: |
-      Now let's create our first attestation! We'll use the `command-run` attestor
-      to capture evidence about our build command.
+      Now let's create our first attestation! We'll capture evidence about our build step.
       
+      The `--step` flag identifies this step (e.g., "build", "test", "deploy").
       The `-o` flag specifies where to save the attestation file.
 
-    example: "witness run -o build-attestation.json -- ./build.sh"
+    example: "witness run --step build -o build-attestation.json -- ./build.sh"
 
     accepted_commands:
-      - "witness run -o build-attestation.json -- ./build.sh"
-      - "witness run -o build-attestation.json -- sh build.sh"
-      - "witness run -o build-attestation.json -- bash build.sh"
+      - "witness run --step build -o build-attestation.json -- ./build.sh"
+      - "witness run --step build -o build-attestation.json -- sh build.sh"
+      - "witness run --step build -o build-attestation.json -- bash build.sh"
 
     validation:
       type: "file_exists"
@@ -285,11 +287,11 @@ steps:
 
     hints:
       - level: 1
-        text: "Use: witness run -o build-attestation.json -- ./build.sh"
+        text: "Use: witness run --step build -o build-attestation.json -- ./build.sh"
       - level: 2
         text: "Make sure you're in the witness-demo directory"
       - level: 3
-        text: "The -- separates witness options from the command to run"
+        text: "The --step flag is required and identifies this build step"
 
     timeout: 30
     allow_skip: false
@@ -299,30 +301,28 @@ steps:
     prompt: "Inspect the attestation"
 
     pre_content: |
-      Let's look at what Witness captured. The attestation is in JSON format
-      and contains detailed information about the command execution.
+      Let's look at what Witness captured. The attestation payload is base64-encoded,
+      so we need to decode it to see the actual content.
 
-    example: "cat build-attestation.json | head -20"
+    example: "cat build-attestation.json | jq -r .payload | base64 -d | jq"
 
     accepted_commands:
-      - "cat build-attestation.json | head -20"
-      - "cat build-attestation.json | head -n 20"
-      - "head -20 build-attestation.json"
-      - "cat build-attestation.json"
+      - "cat build-attestation.json | jq -r .payload | base64 -d | jq"
+      - "cat build-attestation.json | jq -r '.payload' | base64 -d | jq"
+      - "jq -r .payload build-attestation.json | base64 -d | jq"
 
     validation:
       type: "output_contains"
       patterns:
-        - "type"
         - "predicate"
+        - "type"
       any_match: true
 
     post_content: |
-      📋 The attestation contains:
+      📋 The decoded attestation shows:
       - **Type**: The attestation format (in-toto)
       - **Predicate**: Evidence collected by attestors
-      - **Subject**: What was being built/tested
-      - **Signature**: Cryptographic proof of authenticity
+      - **Subject**: Materials and products from the build
       
       This structured format allows automated verification!
 
@@ -374,11 +374,11 @@ steps:
       Now let's create an attestation that includes Git repository information.
       The `-a git` flag enables the Git attestor.
 
-    example: "git add . && git commit -m 'Initial commit' && witness run -a git -o git-attestation.json -- echo 'build complete'"
+    example: "git add . && git commit -m 'Initial commit' && witness run --step build -a git -o git-attestation.json -- echo 'build complete'"
 
     accepted_commands:
-      - "git add . && git commit -m 'Initial commit' && witness run -a git -o git-attestation.json -- echo 'build complete'"
-      - "git add . && git commit -m 'Initial commit' && witness run -a git -o git-attestation.json -- echo build complete"
+      - "git add . && git commit -m 'Initial commit' && witness run --step build -a git -o git-attestation.json -- echo 'build complete'"
+      - "git add . && git commit -m 'Initial commit' && witness run --step build -a git -o git-attestation.json -- echo build complete"
 
     validation:
       type: "file_exists"
@@ -407,7 +407,7 @@ steps:
       - level: 1
         text: "First commit your files with: git add . && git commit -m 'Initial commit'"
       - level: 2
-        text: "Then run: witness run -a git -o git-attestation.json -- echo 'build complete'"
+        text: "Then run: witness run --step build -a git -o git-attestation.json -- echo 'build complete'"
       - level: 3
         text: "The -a flag specifies which attestors to use"
 
@@ -515,11 +515,11 @@ steps:
 
     hints:
       - level: 1
-        text: "Use: witness run -a git -a command-run -o challenge-attestation.json -- <command>"
+        text: "Use: witness run --step build -a git -a command-run -o challenge-attestation.json -- <command>"
       - level: 2
-        text: "Example command: witness run -a git -o challenge-attestation.json -- echo 'Challenge complete'"
+        text: "Example command: witness run --step build -a git -o challenge-attestation.json -- echo 'Challenge complete'"
       - level: 3
-        text: "Full example: witness run -a git -a environment -o challenge-attestation.json -- ./build.sh"
+        text: "Full example: witness run --step build -a git -a environment -o challenge-attestation.json -- ./build.sh"
 
     success_msg: "🎉 Challenge complete! You've mastered multi-attestor attestations!"
 
