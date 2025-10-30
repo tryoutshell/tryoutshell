@@ -1,4 +1,4 @@
-.PHONY: all build clean vet test docgen
+.PHONY: all build clean vet test help test website
 all: clean test build ## Run everything
 
 BINDIR := ./bin
@@ -23,6 +23,8 @@ test: ## Run go tests
 coverage: ## Show the coverage
 	go tool cover -html=profile.cov
 
+website:
+	cd docs-website && yarn start
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
