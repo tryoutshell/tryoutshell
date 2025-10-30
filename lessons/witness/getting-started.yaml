@@ -184,16 +184,18 @@ steps:
       
       The basic syntax is:
       ```
-      witness run --step <step-name> [options] -- <your-command>
+      witness run --step <step-name> -a <attestor> [options] -- <your-command>
       ```
 
       Witness will:
       1. Execute your command
-      2. Collect evidence using attestors
+      2. Collect evidence using specified attestors
       3. Create a signed attestation
       4. Output the attestation (in-toto format)
 
-      The `--step` flag identifies which step in your supply chain this attestation represents.
+      Key flags:
+      - `--step`: Identifies which step in your supply chain (e.g., "build", "test")
+      - `-a`: Specifies which attestor(s) to use (e.g., "command-run", "git", "slsa")
 
       Let's start with a simple example!
 
@@ -253,14 +255,15 @@ steps:
       Now let's create our first attestation! We'll capture evidence about our build step.
       
       The `--step` flag identifies this step (e.g., "build", "test", "deploy").
+      The `-a` flag specifies which attestor to use (e.g., "slsa" for supply chain levels).
       The `-o` flag specifies where to save the attestation file.
 
-    example: "witness run --step build -o build-attestation.json -- ./build.sh"
+    example: "witness run --step build -o build-attestation.json -a command-run -- ./build.sh"
 
     accepted_commands:
-      - "witness run --step build -o build-attestation.json -- ./build.sh"
-      - "witness run --step build -o build-attestation.json -- sh build.sh"
-      - "witness run --step build -o build-attestation.json -- bash build.sh"
+      - "witness run --step build -o build-attestation.json -a command-run -- ./build.sh"
+      - "witness run --step build -o build-attestation.json -a command-run -- sh build.sh"
+      - "witness run --step build -o build-attestation.json -a command-run -- bash build.sh"
 
     validation:
       type: "file_exists"
@@ -287,11 +290,11 @@ steps:
 
     hints:
       - level: 1
-        text: "Use: witness run --step build -o build-attestation.json -- ./build.sh"
+        text: "Use: witness run --step build -o build-attestation.json -a command-run -- ./build.sh"
       - level: 2
         text: "Make sure you're in the witness-demo directory"
       - level: 3
-        text: "The --step flag is required and identifies this build step"
+        text: "The --step flag identifies the step and -a specifies the attestor"
 
     timeout: 30
     allow_skip: false
