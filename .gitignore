@@ -18,4 +18,5 @@ sarif-report.json
 test/log
 node_modules
 .DS_Store
-docs-website/.docusaurusprofile.cov
+docs-website/.docusaurus
+profile.cov
