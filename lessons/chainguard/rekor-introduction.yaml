@@ -1,0 +1,792 @@
+# lessons/chainguard/rekor-introduction.yaml
+
+metadata:
+  id: "rekor-introduction"
+  org: "chainguard"
+  title: "Introduction to Rekor: Transparency Log for Software Supply Chain"
+  description: "Learn about Rekor, the transparency log that provides an immutable record of software artifact metadata for supply chain security"
+  difficulty: "beginner"
+  duration: "15 min"
+  prerequisites:
+    - "Basic understanding of software supply chain"
+    - "Familiarity with command line tools"
+  tags: ["rekor", "sigstore", "supply-chain", "security", "transparency-log"]
+  author: "Chainguard"
+  version: "1.0"
+  resources:
+    - title: "Rekor Documentation"
+      url: "https://docs.sigstore.dev/rekor/overview"
+      type: "docs"
+    - title: "An Introduction to Rekor"
+      url: "https://edu.chainguard.dev/open-source/sigstore/rekor/an-introduction-to-rekor/"
+      type: "tutorial"
+    - title: "Rekor GitHub"
+      url: "https://github.com/sigstore/rekor"
+      type: "github"
+    - title: "Chainguard Academy"
+      url: "https://edu.chainguard.dev"
+      type: "blog"
+
+# Introduction section (shown once at start)
+introduction:
+  title: "What You'll Learn"
+  content: |
+    In this lesson, you will:
+    - Understand what Rekor is and why transparency logs matter
+    - Learn how Rekor fits into the Sigstore ecosystem
+    - Install and verify the Rekor CLI
+    - Query the public Rekor transparency log
+    - Sign and upload metadata to Rekor
+    - Understand real-world use cases for Rekor
+
+    **Time:** ~15 minutes
+    **Tools:** Rekor CLI
+
+# Main lesson flow
+steps:
+  # === SECTION 1: Understanding Rekor ===
+
+  - type: info
+    title: "What is Rekor?"
+    content: |
+      **Rekor** is a transparency log that provides an immutable, append-only ledger 
+      of metadata for software artifacts. Think of it as a "blockchain for software 
+      supply chain" that creates a permanent record of when and how software was signed.
+
+      ### Why Does This Matter?
+
+      In modern software supply chains, you need to answer critical questions:
+      - **When** was this artifact signed?
+      - **Who** signed it?
+      - **What** key or identity was used?
+      - **Has** this signature been revoked?
+
+      Without a transparency log, these questions are difficult to answer reliably.
+      Attackers could:
+      - Backdate signatures to hide compromises
+      - Delete evidence of malicious artifacts
+      - Claim they "never signed" a compromised package
+
+      Rekor prevents this by creating a **tamper-evident** record that anyone can verify.
+
+      > 💡 **Fun Fact**: Rekor is inspired by Certificate Transparency (CT), which has 
+      > successfully prevented fraudulent TLS certificates since 2013.
+
+    highlights:
+      - text: "transparency log"
+        style: "bold"
+      - text: "immutable"
+        style: "bold"
+      - text: "tamper-evident"
+        style: "bold"
+
+    diagram: |
+      Developer              Rekor                 Verifier
+      ┌─────────┐           ┌──────┐             ┌──────────┐
+      │  Sign   │──upload──▶│ Log  │────query───▶│ ✓ Verify │
+      │ Artifact│           │Entry │             │ Timeline │
+      └─────────┘           └──────┘             └──────────┘
+           ↓                    ↓                      ↓
+      Private Key         Public Record          Public Key
+
+    wait_for_continue: true
+
+  - type: info
+    title: "Rekor in the Sigstore Ecosystem"
+    content: |
+      Rekor is one of three core components in **Sigstore**, the open-source 
+      project for signing, verifying, and protecting software:
+
+      ### The Sigstore Trinity
+
+      **1. Cosign** - Signing Tool
+      - Signs container images and artifacts
+      - Creates cryptographic signatures
+
+      **2. Fulcio** - Certificate Authority
+      - Issues short-lived certificates
+      - Ties signatures to identities (via OIDC)
+
+      **3. Rekor** - Transparency Log (You are here! 📍)
+      - Records all signatures permanently
+      - Enables time-stamped verification
+      - Provides an audit trail
+
+      ### How They Work Together:
+      ```
+      Developer signs artifact → Cosign creates signature
+                              ↓
+      Fulcio issues certificate (identity proof)
+                              ↓
+      Rekor logs signature + certificate (permanent record)
+                              ↓
+      Verifier checks Rekor → Confirms when/who signed
+      ```
+
+      > ⚠️ **Important**: Rekor stores **metadata** about signatures, not the 
+      > artifacts themselves. Your code remains private!
+
+    callouts:
+      - type: "tip"
+        text: "Rekor complements Cosign - use them together for complete supply chain security"
+      - type: "info"
+        text: "Fulcio certificates expire in 20 minutes, but Rekor keeps the record forever"
+
+    wait_for_continue: true
+
+  # === SECTION 2: Installation ===
+
+  - type: info
+    title: "Installing the Rekor CLI"
+    content: |
+      The Rekor CLI (`rekor-cli`) allows you to interact with the Rekor transparency log.
+      You can use it to:
+      - Query log entries
+      - Upload new entries
+      - Verify signatures
+      - Search for artifacts
+
+      Let's install it now!
+
+    code_blocks:
+      - label: "macOS (Homebrew)"
+        code: "brew install rekor-cli"
+        language: "bash"
+
+      - label: "Linux (Binary Download)"
+        code: |
+          curl -LO https://github.com/sigstore/rekor/releases/latest/download/rekor-cli-linux-amd64
+          sudo mv rekor-cli-linux-amd64 /usr/local/bin/rekor-cli
+          sudo chmod +x /usr/local/bin/rekor-cli
+        language: "bash"
+
+      - label: "Go Install"
+        code: "go install github.com/sigstore/rekor/cmd/rekor-cli@latest"
+        language: "bash"
+
+      - label: "Verify Installation"
+        code: "rekor-cli version"
+        language: "bash"
+
+  - type: command
+    id: "check-rekor"
+    prompt: "Verify Rekor CLI is installed"
+    instruction: "Check that the Rekor CLI is installed and working:"
+
+    example: "rekor-cli version"
+
+    validation:
+      type: "regex"
+      pattern: "GitVersion|rekor-cli|v[0-9]+\\.[0-9]+\\.[0-9]+"
+      case_insensitive: true
+
+    alternative_validations:
+      - type: "exit_code"
+        expected: 0
+
+    success_msg: "✅ Great! Rekor CLI is installed and ready to use."
+    fail_msg: "❌ Rekor CLI not found. Please install it using one of the methods above."
+
+    hints:
+      - level: 1
+        text: "Type: rekor-cli version"
+      - level: 2
+        text: "If not installed, use: brew install rekor-cli (macOS) or download from GitHub releases"
+      - level: 3
+        text: "Still stuck? Check https://docs.sigstore.dev/rekor/installation"
+
+    allow_skip: true
+    timeout: 10
+
+  # === SECTION 3: Querying Rekor ===
+
+  - type: info
+    title: "The Public Rekor Instance"
+    content: |
+      Sigstore operates a **public Rekor instance** at `https://rekor.sigstore.dev`.
+      
+      This transparency log:
+      - 📊 Contains **millions** of entries from the open-source community
+      - 🌍 Is publicly accessible - anyone can read it
+      - 🔒 Is tamper-proof - entries cannot be modified or deleted
+      - 📈 Grows continuously as new artifacts are signed
+
+      ### What's in the Log?
+
+      Each entry contains:
+      - **Hash** of the signed artifact
+      - **Signature** (or certificate)
+      - **Timestamp** of when it was logged
+      - **Public key** or identity used
+      - **Metadata** (e.g., Git commit SHA, build info)
+
+      Let's explore it!
+
+    wait_for_continue: true
+
+  - type: command
+    id: "query-log-info"
+    prompt: "Get information about the Rekor log"
+
+    pre_content: |
+      Let's check the status of the public Rekor transparency log.
+      This will show us information like the total number of entries.
+
+    example: "rekor-cli loginfo"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "Tree Size"
+        - "Root Hash"
+      any_match: false
+
+    alternative_validations:
+      - type: "exit_code"
+        expected: 0
+
+    post_content: |
+      ✅ **Success!** You can see:
+      - **Tree Size**: Total number of entries in the log
+      - **Root Hash**: Cryptographic hash of the entire log (for verification)
+      - **Signed Tree Head**: Proof that the log hasn't been tampered with
+
+      The tree size shows how many artifacts have been logged. This number 
+      grows every time someone signs software with Sigstore!
+
+    success_msg: "✅ Successfully retrieved Rekor log information!"
+    fail_msg: "❌ Failed to connect to Rekor. Check your internet connection."
+
+    hints:
+      - level: 1
+        text: "Use the command: rekor-cli loginfo"
+      - level: 2
+        text: "Make sure you're connected to the internet"
+      - level: 3
+        text: "The command is: rekor-cli loginfo (no additional arguments needed)"
+
+    timeout: 15
+    allow_skip: false
+
+  - type: info
+    title: "Searching the Rekor Log"
+    content: |
+      You can search Rekor entries by:
+      - **Email address** (for keyless signatures)
+      - **Artifact hash** (SHA256)
+      - **Public key**
+      - **Log index**
+
+      ### Search by Email Example:
+      ```bash
+      rekor-cli search --email your@email.com
+      ```
+
+      This finds all entries where artifacts were signed using your OIDC identity
+      (like GitHub or Google login).
+
+      ### Search by Hash Example:
+      ```bash
+      rekor-cli search --sha sha256:abc123...
+      ```
+
+      This finds entries for a specific artifact by its SHA256 hash.
+
+      ### Get Entry Details:
+      ```bash
+      rekor-cli get --uuid <entry-uuid>
+      ```
+
+      Let's try searching for a real entry!
+
+  - type: command
+    id: "search-public-good"
+    prompt: "Search for Sigstore Public Good entries"
+
+    pre_content: |
+      Let's search for entries from the Sigstore Public Good instance.
+      We'll use the `--public-good` flag which searches the main public log.
+
+      Try searching for a specific entry by index (log entries are numbered sequentially).
+
+    example: "rekor-cli get --log-index 1"
+
+    accepted_commands:
+      - "rekor-cli get --log-index 1"
+      - "rekor-cli get --log-index 1 --format json"
+      - "rekor-cli get --log-index 1 --format json | head -20"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "LogID"
+        - "Body"
+        - "IntegratedTime"
+      any_match: false
+
+    alternative_validations:
+      - type: "exit_code"
+        expected: 0
+
+    post_content: |
+      🎉 **You just retrieved a real entry from the Rekor log!**
+
+      Each entry shows:
+      - **LogID**: Unique identifier for this transparency log
+      - **Body**: The actual entry data (signature, artifact info)
+      - **IntegratedTime**: Unix timestamp when logged
+      - **LogIndex**: Sequential position in the log
+
+      This demonstrates that anyone can audit the transparency log and verify 
+      when artifacts were signed!
+
+    success_msg: "✅ Successfully retrieved a Rekor log entry!"
+    fail_msg: "❌ Failed to retrieve entry. Try again."
+
+    hints:
+      - level: 1
+        text: "Use: rekor-cli get --log-index <number>"
+      - level: 2
+        text: "Try log index 1: rekor-cli get --log-index 1"
+      - level: 3
+        text: "Exact command: rekor-cli get --log-index 1"
+
+    timeout: 20
+    allow_skip: true
+
+  # === SECTION 4: Creating and Uploading Entries ===
+
+  - type: info
+    title: "Creating Your Own Rekor Entry"
+    content: |
+      Now let's create our own entry in the Rekor transparency log!
+
+      To upload an entry, you need:
+      1. **An artifact** (file to sign)
+      2. **A signature** of that artifact
+      3. **A public key** (to verify the signature)
+
+      ### The Process:
+      ```
+      1. Create a file (artifact)
+      2. Generate a key pair
+      3. Sign the artifact
+      4. Upload to Rekor
+      5. Verify the entry
+      ```
+
+      Don't worry - we'll walk through each step!
+
+    wait_for_continue: true
+
+  - type: command
+    id: "create-test-artifact"
+    prompt: "Create a test artifact"
+
+    pre_content: |
+      Let's create a simple file that represents a software release.
+      This could be a binary, configuration file, or any artifact you want to track.
+
+    example: "echo 'MyApp v2.0.0 - Official Release' > myapp-v2.txt"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "myapp-v2.txt"
+
+    post_content: |
+      ✅ Artifact created! In production, this would be:
+      - A compiled application binary
+      - A container image
+      - A release package (tar.gz, .deb, .rpm)
+      - SBOM (Software Bill of Materials)
+      - Any file you want to prove exists at a certain time
+
+    success_msg: "✅ Test artifact created successfully!"
+    fail_msg: "❌ Failed to create artifact."
+
+    timeout: 10
+    allow_skip: false
+
+  - type: command
+    id: "generate-rekor-keys"
+    prompt: "Generate a key pair for signing"
+
+    pre_content: |
+      We need a key pair to sign our artifact. We'll use OpenSSL to generate
+      an ECDSA key pair (Elliptic Curve Digital Signature Algorithm).
+
+      Rekor supports multiple signature algorithms:
+      - RSA
+      - ECDSA (we'll use this)
+      - ED25519
+
+    example: "openssl ecparam -genkey -name prime256v1 -noout -out ec-private.pem"
+
+    accepted_commands:
+      - "openssl ecparam -genkey -name prime256v1 -noout -out ec-private.pem"
+      - "openssl ecparam -genkey -name prime256v1 > ec-private.pem"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "ec-private.pem"
+
+    post_content: |
+      ✅ Private key generated! Now let's extract the public key from it.
+
+      The private key stays secret (used for signing).
+      The public key will be shared with Rekor (used for verification).
+
+    success_msg: "✅ Private key generated!"
+    fail_msg: "❌ Key generation failed. Make sure OpenSSL is installed."
+
+    hints:
+      - level: 1
+        text: "Use OpenSSL to generate an EC key"
+      - level: 2
+        text: "Command: openssl ecparam -genkey -name prime256v1 ..."
+      - level: 3
+        text: "Full command: openssl ecparam -genkey -name prime256v1 -noout -out ec-private.pem"
+
+    timeout: 15
+    allow_skip: false
+
+  - type: command
+    id: "extract-public-key"
+    prompt: "Extract the public key"
+
+    example: "openssl ec -in ec-private.pem -pubout -out ec-public.pem"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "ec-public.pem"
+
+    post_content: |
+      ✅ Public key extracted! You now have:
+      - `ec-private.pem` - Keep this secret! 🔐
+      - `ec-public.pem` - Share this freely! 🌍
+
+    success_msg: "✅ Public key extracted successfully!"
+    fail_msg: "❌ Failed to extract public key."
+
+    hints:
+      - level: 1
+        text: "Use: openssl ec -in <private-key> -pubout -out <public-key>"
+      - level: 2
+        text: "Command: openssl ec -in ec-private.pem -pubout -out ec-public.pem"
+      - level: 3
+        text: "Exact command: openssl ec -in ec-private.pem -pubout -out ec-public.pem"
+
+    timeout: 10
+    allow_skip: false
+
+  - type: command
+    id: "sign-artifact"
+    prompt: "Sign the artifact"
+
+    pre_content: |
+      Now let's create a digital signature of our artifact using the private key.
+      This signature proves that you (the key holder) created this artifact.
+
+    example: "openssl dgst -sha256 -sign ec-private.pem -out myapp-v2.sig myapp-v2.txt"
+
+    accepted_commands:
+      - "openssl dgst -sha256 -sign ec-private.pem -out myapp-v2.sig myapp-v2.txt"
+      - "openssl dgst -sha256 -sign ec-private.pem myapp-v2.txt > myapp-v2.sig"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "myapp-v2.sig"
+
+    post_content: |
+      🎉 **Artifact signed!** The signature file `myapp-v2.sig` contains a 
+      cryptographic proof that:
+      1. You possess the private key
+      2. The artifact hasn't been modified since signing
+      3. The signature was created at a specific point in time
+
+      Next, we'll upload this to Rekor to create a permanent, timestamped record!
+
+    success_msg: "✅ Artifact signed successfully!"
+    fail_msg: "❌ Signing failed. Check that all files exist."
+
+    hints:
+      - level: 1
+        text: "Use: openssl dgst -sha256 -sign <private-key> -out <signature> <file>"
+      - level: 2
+        text: "Sign myapp-v2.txt with ec-private.pem"
+      - level: 3
+        text: "Command: openssl dgst -sha256 -sign ec-private.pem -out myapp-v2.sig myapp-v2.txt"
+
+    timeout: 15
+    allow_skip: false
+
+  - type: command
+    id: "upload-to-rekor"
+    prompt: "Upload the entry to Rekor"
+
+    pre_content: |
+      Time to upload our signed artifact to the Rekor transparency log!
+
+      This will create a permanent, publicly-verifiable record that includes:
+      - The artifact hash
+      - The signature
+      - The public key
+      - A timestamp (provided by Rekor)
+
+      **Note**: We'll use the `--type rekord` flag to specify the entry type.
+
+    example: "rekor-cli upload --rekor_server https://rekor.sigstore.dev --artifact myapp-v2.txt --signature myapp-v2.sig --public-key ec-public.pem"
+
+    accepted_commands:
+      - "rekor-cli upload --rekor_server https://rekor.sigstore.dev --artifact myapp-v2.txt --signature myapp-v2.sig --public-key ec-public.pem"
+      - "rekor-cli upload --artifact myapp-v2.txt --signature myapp-v2.sig --public-key ec-public.pem"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "Created entry at"
+        - "LogIndex"
+        - "Body"
+      any_match: true
+
+    alternative_validations:
+      - type: "exit_code"
+        expected: 0
+
+    post_content: |
+      🎊 **SUCCESS!** Your entry is now in the Rekor transparency log!
+
+      Notice the output includes:
+      - **UUID**: Unique identifier for your entry
+      - **LogIndex**: Position in the log (your permanent record number!)
+      - **IntegratedTime**: Timestamp proving when this was logged
+
+      This entry is now **permanently recorded** and can never be:
+      - Modified
+      - Deleted
+      - Backdated
+
+      Anyone can verify this entry existed at this specific time!
+
+    success_msg: "✅ Entry uploaded to Rekor successfully!"
+    fail_msg: "❌ Upload failed. Check your internet connection and file paths."
+
+    hints:
+      - level: 1
+        text: "Use rekor-cli upload with --artifact, --signature, and --public-key flags"
+      - level: 2
+        text: "You need to specify all three files: artifact, signature, and public key"
+      - level: 3
+        text: "Command: rekor-cli upload --artifact myapp-v2.txt --signature myapp-v2.sig --public-key ec-public.pem"
+
+    timeout: 30
+    allow_skip: true
+
+  # === SECTION 5: Knowledge Check ===
+
+  - type: quiz
+    title: "Quick Knowledge Check"
+    questions:
+      - id: "q1"
+        question: "What is the primary purpose of Rekor?"
+        type: "multiple_choice"
+        options:
+          - "To store private keys securely"
+          - "To provide an immutable transparency log for software signatures"
+          - "To compile and build software"
+          - "To replace container registries"
+        answer: 1
+        explanation: |
+          Rekor provides an **immutable transparency log** that records metadata 
+          about software signatures. It doesn't store artifacts, keys, or build software - 
+          it creates a permanent, verifiable record of when signatures were created.
+
+      - id: "q2"
+        question: "Which components make up the Sigstore ecosystem?"
+        type: "multiple_choice"
+        options:
+          - "Docker, Kubernetes, Helm"
+          - "Cosign, Fulcio, Rekor"
+          - "Git, GitHub, GitLab"
+          - "Maven, Gradle, NPM"
+        answer: 1
+        explanation: |
+          The three core Sigstore components are:
+          - **Cosign**: signing tool
+          - **Fulcio**: certificate authority
+          - **Rekor**: transparency log
+
+      - id: "q3"
+        question: "What does Rekor store in its transparency log?"
+        type: "multiple_choice"
+        options:
+          - "The actual software binaries and source code"
+          - "Metadata about signatures (hashes, timestamps, public keys)"
+          - "Private keys for signing"
+          - "User passwords and credentials"
+        answer: 1
+        explanation: |
+          Rekor stores **metadata** about signatures, including:
+          - Artifact hashes (not the artifacts themselves)
+          - Signatures and public keys
+          - Timestamps
+          - Identity information
+
+          It does NOT store the actual software, private keys, or credentials.
+
+      - id: "q4"
+        question: "Why is a transparency log important for supply chain security?"
+        type: "multiple_choice"
+        options:
+          - "It makes software run faster"
+          - "It provides tamper-evident proof of when artifacts were signed"
+          - "It automatically fixes security vulnerabilities"
+          - "It replaces the need for code reviews"
+        answer: 1
+        explanation: |
+          Transparency logs provide **tamper-evident proof** of when signatures 
+          were created. This prevents attackers from:
+          - Backdating signatures
+          - Deleting evidence of compromises
+          - Claiming they never signed malicious software
+
+  # === SECTION 6: Real-World Use Cases ===
+
+  - type: info
+    title: "Real-World Use Cases"
+    content: |
+      ### Where is Rekor Used?
+
+      **1. Open Source Package Signing** 🌍
+      - NPM packages (JavaScript)
+      - PyPI packages (Python)
+      - Maven artifacts (Java)
+      - Ensures packages haven't been tampered with
+
+      **2. Container Image Verification** 🐳
+      - Kubernetes admission controllers check Rekor
+      - Only deploy images with valid, logged signatures
+      - Prevents deployment of unsigned or compromised images
+
+      **3. Software Bill of Materials (SBOM)** 📋
+      - SBOM signatures logged to Rekor
+      - Proves dependencies haven't changed
+      - Enables vulnerability tracking over time
+
+      **4. CI/CD Pipeline Attestations** 🔄
+      - Build systems log attestations to Rekor
+      - Proves code was built from specific commits
+      - Enables reproducible builds verification
+
+      **5. Incident Response** 🚨
+      - When a compromise is discovered, check Rekor
+      - Identify all affected artifacts by timeline
+      - Determine blast radius of security incidents
+
+      ### Example: NPM Package Security
+      ```
+      Developer signs package → Logged to Rekor with timestamp
+                            ↓
+      User installs package → Verifies against Rekor
+                            ↓
+      If signature missing or backdated → ALERT! 🚨
+      ```
+
+      > 💡 **Case Study**: In 2023, several popular NPM packages were compromised.
+      > With Rekor, users could verify exactly when the compromise occurred by 
+      > checking the transparency log timeline.
+
+    wait_for_continue: true
+
+  # === SECTION 7: Challenge ===
+
+  - type: challenge
+    title: "🚀 Final Challenge: Complete Workflow"
+    description: |
+      Now it's your turn to demonstrate mastery of Rekor!
+
+      **Your task:**
+      1. Create a new artifact file called `final-release.txt` with any content
+      2. Generate a new key pair (or reuse the existing one)
+      3. Sign the artifact
+      4. Upload it to Rekor
+      5. Save the log entry UUID to a file called `rekor-uuid.txt`
+
+      **Bonus challenges:**
+      - Search for your entry using `rekor-cli search`
+      - Retrieve your entry using the UUID
+      - Try uploading multiple artifacts and compare their log indices
+
+      **Hint**: You can extract the UUID from the upload output using grep or by 
+      manually copying it to the file.
+
+    verification:
+      type: "custom"
+      checks:
+        - type: "file_exists"
+          path: "final-release.txt"
+        - type: "file_exists"
+          path: "rekor-uuid.txt"
+
+    hints:
+      - level: 1
+        text: "Follow the same steps as before: create file → sign → upload"
+      - level: 2
+        text: "After upload, copy the UUID from the output to rekor-uuid.txt"
+      - level: 3
+        text: |
+          Complete workflow:
+          1. echo 'Final Release' > final-release.txt
+          2. openssl dgst -sha256 -sign ec-private.pem -out final-release.sig final-release.txt
+          3. rekor-cli upload --artifact final-release.txt --signature final-release.sig --public-key ec-public.pem
+          4. Copy the UUID to rekor-uuid.txt
+
+    success_msg: "🎉 Challenge complete! You've mastered Rekor basics!"
+    allow_skip: true
+
+# Post-lesson summary
+conclusion:
+  title: "What's Next?"
+  content: |
+    🎓 **Congratulations!** You've learned:
+    - What Rekor is and why transparency logs matter
+    - How Rekor fits into the Sigstore ecosystem
+    - How to install and use the Rekor CLI
+    - How to query the public Rekor transparency log
+    - How to sign artifacts and upload metadata to Rekor
+    - Real-world use cases for supply chain security
+
+    ### Next Steps:
+    - 🔐 Try the **Keyless Signing with Cosign** lesson
+    - 🏗️  Learn about **Installing a Private Rekor Instance**
+    - 🔍 Explore **Verifying Container Images with Policy Controllers**
+    - 📜 Study **SBOM Generation and Attestation**
+
+    ### Additional Resources:
+    - [Rekor Documentation](https://docs.sigstore.dev/rekor/overview)
+    - [Chainguard Academy - Rekor Tutorials](https://edu.chainguard.dev/open-source/sigstore/rekor/)
+    - [Sigstore Blog](https://blog.sigstore.dev)
+    - [Rekor GitHub Repository](https://github.com/sigstore/rekor)
+
+    ### Best Practices:
+    - ✅ Use Rekor for all production artifact signing
+    - ✅ Integrate Rekor verification into CI/CD pipelines
+    - ✅ Regularly audit the transparency log for your artifacts
+    - ✅ Combine with SBOM for complete supply chain visibility
+    - ⚠️  Never upload sensitive data to public Rekor instance
+    - ⚠️  Consider a private instance for proprietary software
+
+  badges:
+    - id: "rekor-fundamentals"
+      name: "Rekor Fundamentals"
+      icon: "📜"
+    - id: "transparency-champion"
+      name: "Transparency Champion"
+      icon: "🔍"
+    - id: "supply-chain-security"
+      name: "Supply Chain Security"
+      icon: "🔐"
