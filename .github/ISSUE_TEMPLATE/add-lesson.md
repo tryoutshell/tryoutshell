@@ -18,7 +18,7 @@ assignees: ['github-copilot']
 
 
 **Estimated Duration:**
-<!-- e.g., 15 min, 30 min, 1 hour -->
+<!-- Based on content complexity: 10 min, 20 min, 30 min, 45 min, 1 hour, etc. -->
 
 
 ---
@@ -121,24 +121,29 @@ docs/
 2. **Structure the lesson** with:
    - Complete metadata section (id, org, title, description, difficulty, duration, tags)
    - Introduction section with clear learning objectives
-   - 8-15 well-structured steps including:
+   - **Appropriate number of steps based on content complexity**:
+     - Simple topics: 5-8 steps
+     - Medium topics: 8-12 steps
+     - Complex topics: 12-20 steps
+   - Include a variety of step types:
      - `info` steps for concepts (with highlights, code_blocks, callouts, diagrams)
      - `command` steps for hands-on practice (with validation, hints, success/fail messages)
-     - `quiz` steps for knowledge checks (2-3 questions minimum)
-     - At least one `challenge` step for open-ended practice
+     - `quiz` steps for knowledge checks (1-3 questions, based on lesson length)
+     - `challenge` step(s) if appropriate for the content (optional for simple tutorials)
+     - `interview_prep` steps if relevant to the topic (optional)
    - Conclusion section with next steps and resources
 
 3. **Follow best practices**:
-   - Each command step must have:
-     - Realistic validation (prefer regex/output_contains over exit_code)
-     - 3 progressive hints
-     - Alternative command variations in `accepted_commands`
+   - Each command step should have:
+     - Realistic validation (prefer regex/output_contains over exit_code when possible)
+     - 2-4 progressive hints (more hints for complex commands, fewer for simple ones)
+     - Alternative command variations in `accepted_commands` when applicable
      - Pre-content and post-content explanations
    - Include security warnings where relevant
-   - Add emojis sparingly for visual interest
+   - Use emojis sparingly for visual interest (2-3 per lesson maximum)
    - Use proper Markdown formatting in content fields
-   - Include ASCII diagrams for complex concepts
-   - Add badges to the conclusion section
+   - Add ASCII diagrams for complex concepts (only when they add clarity)
+   - Add relevant badges to the conclusion section
 
 4. **File naming**:
    - Create file as: `lessons/<org>/<topic-name>.yaml`
@@ -151,10 +156,12 @@ docs/
    - Verify all URLs are accessible
    - Check that quiz answers match option indices (0-based)
 
-6. **Reference the example**:
-   - Use `lessons/sigstore/cosign-sign-verify.yaml` as a quality benchmark
-   - Match the tone and depth of explanations
-   - Include similar levels of context and hints
+6. **Adapt to content**:
+   - Use the source material as the guide for lesson structure
+   - Don't force complexity if the topic is simple
+   - Don't oversimplify if the topic is advanced
+   - Match the natural flow and pacing of the original content
+   - Use `lessons/sigstore/cosign-sign-verify.yaml` as a quality reference
 
 ---
 
@@ -164,11 +171,12 @@ The generated lesson YAML must:
 - [ ] Follow the exact format specified in the documentation
 - [ ] Include all required metadata fields
 - [ ] Have clear, actionable steps with proper validation
-- [ ] Include at least one quiz and one challenge
-- [ ] Contain helpful hints and explanations
+- [ ] Include appropriate number and types of steps for the content
+- [ ] Contain helpful hints and explanations (without being excessive)
 - [ ] Be tested for syntax errors
-- [ ] Include proper badges and resources in conclusion
-- [ ] Use realistic examples (no placeholders)
+- [ ] Include relevant badges and resources in conclusion
+- [ ] Use realistic examples (no placeholders like "your-image", "example.com")
+- [ ] Match the complexity and depth of the source material
 
 ---
 
