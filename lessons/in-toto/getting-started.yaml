@@ -1,25 +1,28 @@
+# lessons/in-toto/getting-started.yaml
+
 metadata:
   id: "getting-started"
   org: "in-toto"
-  title: "Container Image Signing with Cosign"
-  description: "Learn to sign and verify container images for supply chain security"
+  title: "Supply Chain Security with in-toto"
+  description: "Learn how in-toto protects software supply chains through attestation and verification"
   difficulty: "beginner"
   duration: "20 min"
   prerequisites:
-    - "Docker installed"
-    - "Basic understanding of containers"
-  tags: ["cosign", "signing", "supply-chain"]
-  author: "By @rahulxf"
+    - "Python 3 installed"
+    - "Basic understanding of software supply chain"
+    - "Familiarity with command line"
+  tags: ["in-toto", "security", "supply-chain", "attestation", "verification", "signing"]
+  author: "By TryOutShell"
   version: "1.0"
   resources:
-    - title: "Cosign Documentation"
-      url: "https://docs.sigstore.dev/cosign/overview"
+    - title: "in-toto Documentation"
+      url: "https://in-toto.io/docs/"
       type: "docs"
-    - title: "Sigstore Blog"
-      url: "https://blog.sigstore.dev"
-      type: "blog"
-    - title: "Cosign GitHub"
-      url: "https://github.com/sigstore/cosign"
+    - title: "in-toto GitHub"
+      url: "https://github.com/in-toto/in-toto"
+      type: "github"
+    - title: "in-toto Demo Repository"
+      url: "https://github.com/in-toto/demo"
       type: "github"
 
 # Introduction section (shown once at start)
@@ -27,57 +30,889 @@ introduction:
   title: "What You'll Learn"
   content: |
     In this lesson, you will:
-    - Understand what Cosign is and why image signing matters
-    - Install and verify Cosign
-    - Sign a container image with ephemeral keys
-    - Verify signatures to ensure image integrity
+    - Understand what in-toto is and why supply chain security matters
+    - Learn about the in-toto framework and its components
+    - Install and set up in-toto
+    - Run through the in-toto demo to see attestation in action
+    - Verify the integrity of a software supply chain
 
     **Time:** ~20 minutes
-    **Tools:** Cosign, Docker
+    **Tools:** in-toto, Python, Git
 
 # Main lesson flow
 steps:
-  # === SECTION 1: Understanding Cosign ===
+  # === SECTION 1: Understanding in-toto ===
 
   - type: info
-    title: "What is Cosign?"
+    title: "What is in-toto?"
     content: |
-      **Cosign** is a tool for signing and verifying container images and other artifacts.
+      **in-toto** is a framework that cryptographically ensures the integrity of the software supply chain.
 
-      Think of it like a digital signature for software packages - it proves:
-      - **Who** created the image (authenticity)
-      - **What** exact image you're running (integrity)
-      - **When** it was signed (provenance)
+      Think of it as a chain of custody for your software - it proves:
+      - **Who** performed each step in the build process
+      - **What** exactly was done at each step
+      - **That** the final product matches what was intended
 
-      ### Why Does This Matter?
+      ### The Problem
 
-      Without signing, you can't be sure that `myapp:latest` hasn't been tampered with
-      between the registry and your production cluster. An attacker could:
-      - Replace your image with malicious code
-      - Inject backdoors during CI/CD
-      - Modify dependencies without detection
+      Modern software goes through many steps before reaching users:
+      ```
+      Developer → Git → CI → Build → Test → Package → Deploy
+      ```
 
-      Cosign prevents this by creating cryptographic signatures that are nearly
-      impossible to forge.
+      Without in-toto, an attacker could:
+      - Inject malicious code during the build
+      - Skip security tests
+      - Replace artifacts before deployment
+      - Modify the code between steps
 
-      > 💡 **Fun Fact**: Cosign is part of the Sigstore project, which also includes
-      > Fulcio (certificate authority) and Rekor (transparency log).
+      ### The Solution
 
-    # Highlight specific terms/commands in the UI
-    highlights:
-      - text: "myapp:latest"
-        style: "code"
-      - text: "Sigstore"
-        style: "bold"
-      - text: "Client"
-        style: "code"
+      in-toto creates a **verifiable record** of each step using:
+      - **Link metadata** - Signed attestations of what happened
+      - **Layouts** - Policies defining required steps
+      - **Verification** - Proof that the policy was followed
 
-    # Optional: Show a diagram (ASCII art)
     diagram: |
-      Registry              Cosign                Your Cluster
-      ┌────────┐            ┌──────┐             ┌───────────┐
-      │ Image  │───sign────▶│ .sig │────verify──▶│ ✓ Deploy  │
-      └────────┘            └──────┘             └───────────┘
+      Supply Chain Without in-toto:
+      ┌──────┐   ┌──────┐   ┌──────┐   ❌ No verification
+      │ Code │──▶│ Build│──▶│Deploy│
+      └──────┘   └──────┘   └──────┘
 
-    # User must explicitly continue (prevents info overload)
+      Supply Chain With in-toto:
+      ┌──────┐   ┌──────┐   ┌──────┐   ┌────────┐
+      │ Code │──▶│ Build│──▶│Deploy│──▶│ Verify │ ✅
+      └──────┘   └──────┘   └──────┘   └────────┘
+         ↓          ↓          ↓            ↑
+      [.link]   [.link]   [.link]    All links verified!
+
     wait_for_continue: true
+
+  - type: info
+    title: "How in-toto Works"
+    content: |
+      in-toto uses three main components:
+
+      ### 1. Layout (Policy)
+      Defines the **required steps** and **who** can perform them:
+      ```yaml
+      steps:
+        - name: "clone"
+          functionaries: ["alice"]
+        - name: "build"
+          functionaries: ["bob"]
+        - name: "test"
+          functionaries: ["bob"]
+      ```
+
+      ### 2. Link Metadata (Attestations)
+      Each functionary creates **signed attestations** of their work:
+      - Which files were used (materials)
+      - Which files were produced (products)
+      - What command was run
+
+      ### 3. Verification
+      The final user verifies:
+      - All required steps were performed
+      - By the authorized functionaries
+      - In the correct order
+      - With matching artifacts between steps
+
+      > 💡 **Key Insight**: Even if an attacker compromises one step,
+      > they can't fake the entire chain without all the private keys!
+
+    callouts:
+      - type: "tip"
+        text: "in-toto is framework-agnostic - it works with any build system!"
+      - type: "warning"
+        text: "Always protect your private keys - they're your identity in the supply chain"
+
+    wait_for_continue: true
+
+  # === SECTION 2: Installation ===
+
+  - type: info
+    title: "Installing in-toto"
+    content: |
+      Let's install in-toto using pip (Python's package manager).
+
+      in-toto requires Python 3.6 or higher. We'll also clone the demo
+      repository to follow along with a hands-on example.
+
+    code_blocks:
+      - label: "Install via pip"
+        code: "pip install in-toto"
+        language: "bash"
+
+      - label: "Install from source"
+        code: |
+          git clone https://github.com/in-toto/in-toto.git
+          cd in-toto
+          pip install -e .
+        language: "bash"
+
+  - type: command
+    id: "install-in-toto"
+    prompt: "Install in-toto"
+    instruction: "Install in-toto using pip:"
+
+    pre_content: |
+      Let's install in-toto. If you're using a virtual environment,
+      make sure it's activated first.
+
+    example: "pip install in-toto"
+
+    accepted_commands:
+      - "pip install in-toto"
+      - "pip3 install in-toto"
+      - "python -m pip install in-toto"
+      - "python3 -m pip install in-toto"
+
+    validation:
+      type: "exit_code"
+      expected: 0
+
+    alternative_validations:
+      - type: "output_contains"
+        patterns:
+          - "Successfully installed"
+          - "Requirement already satisfied"
+        any_match: true
+
+    post_content: |
+      ✅ in-toto is now installed!
+
+      This includes the `in-toto-run` and `in-toto-verify` commands
+      that we'll use to create and verify attestations.
+
+    success_msg: "✅ in-toto installed successfully!"
+    fail_msg: "❌ Installation failed. Make sure Python and pip are installed."
+
+    hints:
+      - level: 1
+        text: "Try: pip install in-toto"
+      - level: 2
+        text: "If pip is not found, use: python3 -m pip install in-toto"
+      - level: 3
+        text: "On some systems you may need to use pip3 instead of pip"
+
+    timeout: 60
+    allow_skip: false
+
+  - type: command
+    id: "verify-installation"
+    prompt: "Verify in-toto installation"
+
+    pre_content: |
+      Let's verify that in-toto is properly installed by checking
+      the version of the in-toto-run command.
+
+    example: "in-toto-run --version"
+
+    validation:
+      type: "regex"
+      pattern: "in-toto.*version|\\d+\\.\\d+\\.\\d+"
+      case_insensitive: true
+
+    alternative_validations:
+      - type: "exit_code"
+        expected: 0
+
+    post_content: |
+      Perfect! in-toto is ready to use.
+
+    success_msg: "✅ in-toto is working correctly!"
+    fail_msg: "❌ Could not verify in-toto. Try reinstalling."
+
+    hints:
+      - level: 1
+        text: "Run: in-toto-run --version"
+      - level: 2
+        text: "Make sure in-toto was installed successfully in the previous step"
+
+    timeout: 10
+    allow_skip: true
+
+  # === SECTION 3: The Demo Scenario ===
+
+  - type: info
+    title: "The in-toto Demo"
+    content: |
+      We'll walk through a simplified supply chain scenario with three actors:
+
+      ### Actors
+
+      **👤 Alice (Project Owner)**
+      - Defines the supply chain layout (policy)
+      - Specifies what steps are required and who can perform them
+
+      **👷 Bob (Builder)**
+      - Clones the source code
+      - Compiles the software
+      - Runs tests
+      - Creates signed attestations for each step
+
+      **👤 Carl (End User)**
+      - Receives the final product
+      - Verifies all steps were performed correctly
+      - Checks that the product matches the policy
+
+      ### The Scenario
+
+      We're building a simple Python package. The supply chain has these steps:
+
+      1. **Clone** - Get source code from Git
+      2. **Update version** - Modify version number
+      3. **Package** - Create distribution package
+
+      Each step creates link metadata proving it was done correctly.
+
+    diagram: |
+      Alice (Owner)          Bob (Builder)          Carl (User)
+      ─────────────          ─────────────          ───────────
+      1. Create layout       2. Clone repo          7. Get product
+         (policy)               ├─ Create link         + all links
+                                                       + layout
+      3. Sign layout         4. Update version
+                                ├─ Create link      8. Verify:
+      5. Distribute              └─ Sign               ✓ All steps done
+         layout              5. Package                ✓ By authorized
+                                ├─ Create link         ✓ Artifacts match
+      6. Distribute              └─ Sign
+         public key
+
+    wait_for_continue: true
+
+  # === SECTION 4: Setting Up the Demo ===
+
+  - type: command
+    id: "clone-demo"
+    prompt: "Clone the in-toto demo repository"
+
+    pre_content: |
+      Let's clone the official in-toto demo repository. This contains
+      pre-configured keys and a sample project to demonstrate the framework.
+
+    example: "git clone https://github.com/in-toto/demo.git"
+
+    accepted_commands:
+      - "git clone https://github.com/in-toto/demo.git"
+      - "git clone https://github.com/in-toto/demo"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "demo"
+        - "demo/README.md"
+
+    post_content: |
+      ✅ Demo repository cloned!
+
+      The demo directory contains:
+      - Pre-generated keys for Alice and Bob
+      - A sample Python project
+      - Scripts to run the demo automatically
+
+    success_msg: "✅ Demo repository ready!"
+    fail_msg: "❌ Failed to clone repository. Check your internet connection."
+
+    hints:
+      - level: 1
+        text: "Use: git clone https://github.com/in-toto/demo.git"
+      - level: 2
+        text: "Make sure git is installed and you have internet access"
+
+    timeout: 30
+    allow_skip: false
+
+  - type: command
+    id: "navigate-demo"
+    prompt: "Enter the demo directory"
+
+    example: "cd demo"
+
+    validation:
+      type: "exit_code"
+      expected: 0
+
+    post_content: |
+      Now we're in the demo directory. Let's explore what's here.
+
+    success_msg: "✅ Ready to start the demo!"
+
+    timeout: 5
+    allow_skip: false
+
+  - type: command
+    id: "explore-demo"
+    prompt: "List the demo contents"
+
+    pre_content: |
+      Let's see what files are in the demo directory.
+
+    example: "ls -la"
+
+    accepted_commands:
+      - "ls"
+      - "ls -la"
+      - "ls -l"
+      - "dir"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "alice"
+        - "bob"
+        - "functionary"
+      any_match: true
+
+    post_content: |
+      You should see several directories and files:
+      - **owner_alice/** - Contains Alice's keys and layout
+      - **functionary_bob/** - Bob's workspace
+      - **final_product/** - Where the verified product ends up
+      - Various scripts to run the demo
+
+    success_msg: "✅ Demo structure explored!"
+
+    hints:
+      - level: 1
+        text: "Try: ls"
+      - level: 2
+        text: "Use ls -la to see all files including hidden ones"
+
+    timeout: 10
+    allow_skip: true
+
+  # === SECTION 5: Running the Demo as Bob ===
+
+  - type: info
+    title: "Bob's Role: Creating Attestations"
+    content: |
+      Now we'll act as **Bob the Builder** and perform the supply chain steps.
+
+      For each step, Bob will:
+      1. Execute the actual work (clone, modify, package)
+      2. Record what materials (inputs) were used
+      3. Record what products (outputs) were created
+      4. Sign the attestation with his private key
+
+      This creates **link metadata** - cryptographic proof of what Bob did.
+
+      ### The in-toto-run Command
+
+      ```bash
+      in-toto-run -n <step-name> \
+                  --key <private-key> \
+                  --materials <input-files> \
+                  --products <output-files> \
+                  -- <command>
+      ```
+
+      This records the command execution and creates a signed `.link` file.
+
+  - type: command
+    id: "clone-step"
+    prompt: "Perform the clone step"
+
+    pre_content: |
+      Let's perform the first supply chain step: cloning the project.
+
+      We'll use `in-toto-run` to execute the clone and create an attestation.
+      This command will:
+      1. Run `git clone` to get the source
+      2. Record that no materials were used (it's the first step)
+      3. Record the cloned files as products
+      4. Sign the attestation with Bob's key
+
+    example: "in-toto-run --step-name clone --key functionary_bob/bob --products demo-project/foo.py -- git clone https://github.com/in-toto/demo-project.git"
+
+    accepted_commands:
+      - "in-toto-run --step-name clone --key functionary_bob/bob --products demo-project/foo.py -- git clone https://github.com/in-toto/demo-project.git"
+      - "in-toto-run -n clone --key functionary_bob/bob --products demo-project/foo.py -- git clone https://github.com/in-toto/demo-project.git"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "clone.link"
+        - "demo-project"
+
+    post_content: |
+      🎉 **First attestation created!**
+
+      Look for the `clone.link` file - this contains:
+      - A record of the git clone command
+      - Hash of the resulting foo.py file
+      - Bob's signature proving he performed this step
+
+      Let's examine it in the next step.
+
+    success_msg: "✅ Clone step completed and attested!"
+    fail_msg: "❌ Clone failed. Make sure you're in the demo directory."
+
+    hints:
+      - level: 1
+        text: "The command is quite long - copy it from the example"
+      - level: 2
+        text: "Make sure you're in the demo directory"
+      - level: 3
+        text: "Use the exact command: in-toto-run --step-name clone --key functionary_bob/bob --products demo-project/foo.py -- git clone https://github.com/in-toto/demo-project.git"
+
+    timeout: 30
+    allow_skip: true
+
+  - type: command
+    id: "view-link-metadata"
+    prompt: "View the link metadata"
+
+    pre_content: |
+      Let's examine the link metadata that was just created.
+      This file contains the cryptographic attestation of what Bob did.
+
+    example: "cat clone.link"
+
+    accepted_commands:
+      - "cat clone.link"
+      - "less clone.link"
+      - "more clone.link"
+      - "head clone.link"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "clone"
+        - "products"
+        - "sha256"
+      any_match: true
+
+    post_content: |
+      The link file is JSON containing:
+      - **_type**: "link" (metadata type)
+      - **name**: "clone" (step name)
+      - **materials**: {} (no inputs for first step)
+      - **products**: {hash of foo.py}
+      - **command**: the git clone command
+      - **byproducts**: stdout/stderr
+      - **environment**: system info
+      - **signatures**: Bob's cryptographic signature
+
+      This proves exactly what Bob did and what resulted from it!
+
+    success_msg: "✅ Link metadata examined!"
+
+    hints:
+      - level: 1
+        text: "Use: cat clone.link"
+
+    timeout: 10
+    allow_skip: true
+
+  - type: command
+    id: "update-version-step"
+    prompt: "Perform the update-version step"
+
+    pre_content: |
+      Now for the second step: updating the version number in the code.
+
+      This time, the **materials** (inputs) will be the foo.py from the clone,
+      and the **products** (outputs) will be the modified foo.py.
+
+    example: "in-toto-run --step-name update-version --key functionary_bob/bob --materials demo-project/foo.py --products demo-project/foo.py -- sed -i 's/v0/v1/' demo-project/foo.py"
+
+    accepted_commands:
+      - "in-toto-run --step-name update-version --key functionary_bob/bob --materials demo-project/foo.py --products demo-project/foo.py -- sed -i 's/v0/v1/' demo-project/foo.py"
+      - "in-toto-run -n update-version --key functionary_bob/bob --materials demo-project/foo.py --products demo-project/foo.py -- sed -i 's/v0/v1/' demo-project/foo.py"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "update-version.link"
+
+    post_content: |
+      ✅ **Second attestation created!**
+
+      The `update-version.link` file now contains:
+      - **Materials**: hash of foo.py (v0)
+      - **Products**: hash of foo.py (v1)
+
+      This proves the transformation from v0 to v1 was done by Bob.
+
+    success_msg: "✅ Update-version step completed!"
+    fail_msg: "❌ Update failed."
+
+    hints:
+      - level: 1
+        text: "Copy the example command carefully"
+      - level: 2
+        text: "On macOS, you may need to use: sed -i '' instead of sed -i"
+      - level: 3
+        text: "The materials and products are both demo-project/foo.py since we're modifying in place"
+
+    timeout: 20
+    allow_skip: true
+
+  - type: command
+    id: "package-step"
+    prompt: "Perform the package step"
+
+    pre_content: |
+      Final step: creating a tarball package.
+
+      This uses the modified foo.py as material and creates foo.tar.gz as product.
+
+    example: "in-toto-run --step-name package --key functionary_bob/bob --materials demo-project/foo.py --products foo.tar.gz -- tar --exclude '.git' -zcvf foo.tar.gz demo-project"
+
+    accepted_commands:
+      - "in-toto-run --step-name package --key functionary_bob/bob --materials demo-project/foo.py --products foo.tar.gz -- tar --exclude '.git' -zcvf foo.tar.gz demo-project"
+      - "in-toto-run -n package --key functionary_bob/bob --materials demo-project/foo.py --products foo.tar.gz -- tar --exclude '.git' -zcvf foo.tar.gz demo-project"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "package.link"
+        - "foo.tar.gz"
+
+    post_content: |
+      🎉 **All supply chain steps completed!**
+
+      You should now have:
+      - ✅ clone.link
+      - ✅ update-version.link  
+      - ✅ package.link
+      - ✅ foo.tar.gz (the final product)
+
+      Each .link file is a signed attestation proving Bob performed that step.
+
+    success_msg: "✅ Package step completed!"
+    fail_msg: "❌ Packaging failed."
+
+    hints:
+      - level: 1
+        text: "Use the tar command to create foo.tar.gz"
+      - level: 2
+        text: "Copy the full in-toto-run command from the example"
+
+    timeout: 20
+    allow_skip: true
+
+  # === SECTION 6: Verification ===
+
+  - type: info
+    title: "Verification: Carl's Perspective"
+    content: |
+      Now we switch to **Carl the User**. Carl has:
+      - The final product (foo.tar.gz)
+      - The link metadata files (.link files)
+      - Alice's layout (the policy)
+      - Alice's public key
+
+      Carl will verify that:
+      1. ✅ All required steps were performed
+      2. ✅ Steps were done by authorized functionaries (Bob)
+      3. ✅ Artifacts match between steps (clone→update→package)
+      4. ✅ The layout signature is valid (from Alice)
+
+      ### The in-toto-verify Command
+
+      ```bash
+      in-toto-verify --layout <layout-file> \
+                     --layout-keys <owner-public-key>
+      ```
+
+      If verification passes, Carl can trust the product!
+
+  - type: command
+    id: "verify-supply-chain"
+    prompt: "Verify the supply chain"
+
+    pre_content: |
+      Let's verify the entire supply chain using Alice's layout and public key.
+
+      This will check all the link metadata and ensure the policy was followed.
+
+    example: "in-toto-verify --layout owner_alice/root.layout --layout-keys owner_alice/alice.pub"
+
+    accepted_commands:
+      - "in-toto-verify --layout owner_alice/root.layout --layout-keys owner_alice/alice.pub"
+      - "in-toto-verify -l owner_alice/root.layout --layout-keys owner_alice/alice.pub"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "PASSING"
+        - "The software product passed all verification"
+      any_match: true
+
+    post_content: |
+      🎉 **Verification PASSED!**
+
+      This means:
+      - ✅ All required steps (clone, update-version, package) were performed
+      - ✅ Bob performed them (his signatures are valid)
+      - ✅ Artifacts match between steps (no tampering)
+      - ✅ The layout policy was followed exactly
+
+      Carl can now trust that foo.tar.gz is the authentic product!
+
+      ### What if verification failed?
+
+      Verification would fail if:
+      - ❌ A step was skipped
+      - ❌ An unauthorized person performed a step
+      - ❌ Files were modified between steps
+      - ❌ The layout was tampered with
+
+    success_msg: "✅ Supply chain verified successfully!"
+    fail_msg: "❌ Verification failed. The supply chain may be compromised."
+
+    hints:
+      - level: 1
+        text: "Use: in-toto-verify --layout owner_alice/root.layout --layout-keys owner_alice/alice.pub"
+      - level: 2
+        text: "Make sure all .link files are present in the current directory"
+      - level: 3
+        text: "Verify you're still in the demo directory and all previous steps completed"
+
+    timeout: 20
+    allow_skip: false
+
+  # === SECTION 7: Understanding the Layout ===
+
+  - type: command
+    id: "view-layout"
+    prompt: "Examine the layout policy"
+
+    pre_content: |
+      Let's look at Alice's layout to understand the policy that was enforced.
+
+    example: "cat owner_alice/root.layout"
+
+    accepted_commands:
+      - "cat owner_alice/root.layout"
+      - "less owner_alice/root.layout"
+      - "more owner_alice/root.layout"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "steps"
+        - "clone"
+        - "package"
+      any_match: true
+
+    post_content: |
+      The layout defines:
+
+      **Steps**: What must be done
+      - clone
+      - update-version
+      - package
+
+      **Functionaries**: Who can do them
+      - Bob's public key is listed
+
+      **Expected Materials/Products**: 
+      - What files should be used and created
+
+      **Inspections**: Additional checks to run
+      - Unpacking and verifying the tarball contents
+
+      This is the "contract" that the supply chain must follow!
+
+    success_msg: "✅ Layout examined!"
+
+    hints:
+      - level: 1
+        text: "Use: cat owner_alice/root.layout"
+
+    timeout: 10
+    allow_skip: true
+
+  # === SECTION 8: Quiz ===
+
+  - type: quiz
+    title: "Knowledge Check"
+    questions:
+      - id: "q1"
+        question: "What does in-toto provide for software supply chains?"
+        type: "multiple_choice"
+        options:
+          - "Faster builds"
+          - "Cryptographic verification of integrity"
+          - "Automatic bug fixing"
+          - "Code compilation"
+        answer: 1
+        explanation: |
+          in-toto provides **cryptographic verification** that each step in the
+          supply chain was performed correctly and by authorized parties.
+
+      - id: "q2"
+        question: "What are the three main components of in-toto?"
+        type: "multiple_choice"
+        options:
+          - "Git, Docker, Kubernetes"
+          - "Layout, Link metadata, Verification"
+          - "Clone, Build, Deploy"
+          - "Alice, Bob, Carl"
+        answer: 1
+        explanation: |
+          The three components are:
+          1. **Layout** - The policy defining required steps
+          2. **Link metadata** - Signed attestations of work performed
+          3. **Verification** - Checking the policy was followed
+
+      - id: "q3"
+        question: "What does a .link file contain?"
+        type: "multiple_choice"
+        options:
+          - "Source code"
+          - "Compiled binaries"
+          - "Signed attestation of a supply chain step"
+          - "Configuration settings"
+        answer: 2
+        explanation: |
+          A **.link file** contains a signed attestation including:
+          - Materials (input files and their hashes)
+          - Products (output files and their hashes)
+          - The command that was run
+          - A signature from the functionary
+
+      - id: "q4"
+        question: "In the demo, who creates the layout policy?"
+        type: "multiple_choice"
+        options:
+          - "Bob (the builder)"
+          - "Carl (the user)"
+          - "Alice (the owner)"
+          - "The CI system"
+        answer: 2
+        explanation: |
+          **Alice** (the project owner) creates and signs the layout,
+          which defines what steps must be performed and who can perform them.
+
+  # === SECTION 9: Challenge ===
+
+  - type: challenge
+    title: "🚀 Challenge: Detect Tampering"
+    description: |
+      Now let's see what happens when the supply chain is compromised!
+
+      **Your task:**
+      1. Modify the foo.tar.gz file (add some text to it)
+      2. Try to verify the supply chain again
+      3. Observe that verification fails
+      4. Save the error output to a file called `tampering-detected.txt`
+
+      This demonstrates how in-toto detects unauthorized changes.
+
+      **Bonus:** Try modifying one of the .link files and see what happens!
+
+    verification:
+      type: "custom"
+      checks:
+        - type: "file_exists"
+          path: "tampering-detected.txt"
+        - type: "file_contains"
+          path: "tampering-detected.txt"
+          pattern: "FAILED|verification"
+
+    hints:
+      - level: 1
+        text: "Modify foo.tar.gz with: echo 'malicious code' >> foo.tar.gz"
+      - level: 2
+        text: "Run verification again and redirect output: in-toto-verify ... 2>&1 | tee tampering-detected.txt"
+      - level: 3
+        text: |
+          Full solution:
+          echo 'malicious' >> foo.tar.gz
+          in-toto-verify --layout owner_alice/root.layout --layout-keys owner_alice/alice.pub 2>&1 | tee tampering-detected.txt
+
+    success_msg: "🎉 You've demonstrated how in-toto detects tampering!"
+
+    allow_skip: true
+
+  # === SECTION 10: Real-World Applications ===
+
+  - type: info
+    title: "in-toto in the Real World"
+    content: |
+      in-toto is used in production by many organizations:
+
+      ### 🏢 Cloud Native Computing Foundation (CNCF)
+      - Uses in-toto for supply chain security
+      - Integrated with Tekton Chains for Kubernetes
+
+      ### 📦 Package Managers
+      - **DataDog APT/YUM repositories** use in-toto
+      - **NYU's systems** protect package distribution
+
+      ### 🔐 Integration with Other Tools
+
+      **Sigstore**
+      - in-toto attestations with keyless signing
+      - Combined with Rekor transparency logs
+
+      **SLSA (Supply-chain Levels for Software Artifacts)**
+      - Uses in-toto attestation format
+      - Builds on in-toto's design
+
+      **Tekton Chains**
+      - Automatically creates in-toto attestations for CI/CD
+      - Kubernetes-native supply chain security
+
+      ### 🎯 Use Cases
+
+      - **Software vendors** - Prove builds weren't tampered with
+      - **Cloud providers** - Verify deployments match source
+      - **Regulatory compliance** - Auditable supply chain records
+      - **Open source** - Transparent build processes
+
+    callouts:
+      - type: "tip"
+        text: "Check out in-toto attestation bundles (ITE-6) for modern implementations!"
+
+    wait_for_continue: true
+
+# Post-lesson summary
+conclusion:
+  title: "What's Next?"
+  content: |
+    🎓 **Congratulations!** You've learned:
+    - What in-toto is and why supply chain security matters
+    - How layouts, link metadata, and verification work together
+    - How to create attestations for supply chain steps
+    - How to verify the integrity of a software supply chain
+    - How in-toto detects tampering and unauthorized changes
+
+    ### 🚀 Next Steps:
+
+    - **Explore the in-toto specification** - Learn about advanced features
+    - **Try integrating in-toto with your CI/CD** - Automate attestation creation
+    - **Learn about SLSA** - Supply-chain Levels for Software Artifacts
+    - **Explore Sigstore** - Combine in-toto with keyless signing
+    - **Try Tekton Chains** - Kubernetes-native supply chain security
+
+    ### 📚 Additional Resources:
+
+    - [in-toto Documentation](https://in-toto.io/docs/)
+    - [in-toto Specification](https://github.com/in-toto/docs/blob/master/in-toto-spec.md)
+    - [SLSA Framework](https://slsa.dev)
+    - [Sigstore Project](https://sigstore.dev)
+    - [Tekton Chains](https://tekton.dev/docs/chains/)
+
+    ### 🎖️ Related Lessons:
+
+    - **Sigstore Cosign** - Container image signing
+    - **SLSA Levels** - Supply chain maturity model
+    - **Rekor** - Transparency logs
+
+  badges:
+    - id: "in-toto-basics"
+      name: "in-toto Fundamentals"
+      icon: "🔐"
+    - id: "supply-chain-security"
+      name: "Supply Chain Security"
+      icon: "⛓️"
+    - id: "attestation-master"
+      name: "Attestation Master"
+      icon: "✍️"
