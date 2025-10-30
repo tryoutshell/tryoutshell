@@ -1,0 +1,559 @@
+metadata:
+  id: "getting-started"
+  org: "witness"
+  title: "Getting Started with Witness"
+  description: "Learn to create verifiable software supply chain attestations with Witness"
+  difficulty: "beginner"
+  duration: "15 min"
+  prerequisites:
+    - "Basic understanding of command line"
+    - "Git installed"
+  tags: ["witness", "in-toto", "security", "attestation", "supply-chain"]
+  author: "TryOutShell"
+  version: "1.0"
+  resources:
+    - title: "Witness Documentation"
+      url: "https://witness.dev/docs/"
+      type: "docs"
+    - title: "Witness Getting Started"
+      url: "https://witness.dev/docs/docs/tutorials/getting-started"
+      type: "tutorial"
+    - title: "Witness GitHub"
+      url: "https://github.com/in-toto/witness"
+      type: "github"
+
+introduction:
+  title: "What You'll Learn"
+  content: |
+    In this lesson, you will:
+    - Understand what Witness is and why attestation matters
+    - Learn about in-toto attestations and supply chain security
+    - Install and verify Witness
+    - Create your first attestation
+    - Understand attestors, policies, and verification
+
+    **Time:** ~15 minutes
+    **Tools:** Witness, Git
+
+steps:
+  # === SECTION 1: Understanding Witness ===
+
+  - type: info
+    title: "What is Witness?"
+    content: |
+      **Witness** is a tool that helps you create verifiable attestations about your software supply chain.
+      
+      Think of it as a notary for your build process - it creates cryptographically signed 
+      records (attestations) that prove:
+      - **What** steps were executed in your build
+      - **When** those steps happened
+      - **Where** the build occurred
+      - **Who** performed the build
+
+      ### Why Does This Matter?
+
+      Modern software supply chains are complex and vulnerable to attacks:
+      - Malicious code injection during build
+      - Compromised dependencies
+      - Unauthorized modifications to artifacts
+      - Lack of audit trail
+
+      Witness solves this by creating an immutable, verifiable record of your entire
+      software supply chain using **in-toto attestations**.
+
+      > 💡 **Key Concept**: Witness is built on the in-toto framework, which provides
+      > a standardized way to secure the software supply chain.
+
+    highlights:
+      - text: "attestations"
+        style: "bold"
+      - text: "in-toto"
+        style: "code"
+      - text: "supply chain"
+        style: "bold"
+
+    diagram: |
+      Build Process          Witness               Verification
+      ┌────────────┐        ┌──────────┐          ┌───────────┐
+      │ git clone  │───────▶│ Attest   │─────────▶│ ✓ Verify  │
+      │ go build   │        │ & Sign   │          │ Policy    │
+      │ go test    │        └──────────┘          └───────────┘
+      └────────────┘
+
+    wait_for_continue: true
+
+  - type: info
+    title: "Understanding in-toto Attestations"
+    content: |
+      **in-toto** is a framework to protect software supply chains. Witness uses
+      in-toto attestations to record what happens during your build.
+
+      ### Key Components:
+
+      **📋 Attestor**
+      - Collects evidence about a step in your supply chain
+      - Examples: git info, test results, build commands
+      - Each attestor captures specific metadata
+
+      **📦 Collection**
+      - Groups multiple attestors together
+      - Runs all attestors for a specific step
+      - Creates a comprehensive attestation
+
+      **⚙️ Policy**
+      - Defines what must happen in your supply chain
+      - Specifies required attestations
+      - Enforces security rules
+
+      **🔐 Signer**
+      - Cryptographically signs attestations
+      - Supports multiple backends (file, KMS, Fulcio)
+      - Ensures attestations can't be forged
+
+    callouts:
+      - type: "tip"
+        text: "Attestations are like receipts for your build process - they prove what happened"
+      - type: "warning"
+        text: "Without attestations, you can't verify your software hasn't been tampered with"
+
+    wait_for_continue: true
+
+  # === SECTION 2: Installation ===
+
+  - type: info
+    title: "Installing Witness"
+    content: |
+      Let's install Witness on your system. First, check if it's already installed.
+
+      Try running: `witness version`
+
+      If you see version information, you're ready! Otherwise, install it using:
+
+    code_blocks:
+      - label: "Linux/macOS (Binary)"
+        code: |
+          curl -LO https://github.com/in-toto/witness/releases/latest/download/witness_$(uname -s)_$(uname -m)
+          chmod +x witness_$(uname -s)_$(uname -m)
+          sudo mv witness_$(uname -s)_$(uname -m) /usr/local/bin/witness
+        language: "bash"
+
+      - label: "Go Install"
+        code: "go install github.com/in-toto/witness/cmd/witness@latest"
+        language: "bash"
+
+      - label: "Homebrew (macOS)"
+        code: "brew install witness"
+        language: "bash"
+
+  - type: command
+    id: "check-witness"
+    prompt: "Verify Witness is installed"
+    instruction: "Check your Witness version to confirm it's installed:"
+
+    example: "witness version"
+
+    validation:
+      type: "regex"
+      pattern: "witness.*version|GitVersion|v[0-9]"
+      case_insensitive: true
+
+    alternative_validations:
+      - type: "exit_code"
+        expected: 0
+
+    success_msg: "✅ Great! Witness is installed and ready to use."
+    fail_msg: "❌ Witness not found. Please install it using one of the methods above."
+
+    hints:
+      - level: 1
+        text: "Type: witness version"
+      - level: 2
+        text: "If not installed, use the installation commands shown above"
+      - level: 3
+        text: "For quick install: go install github.com/in-toto/witness/cmd/witness@latest"
+
+    allow_skip: true
+    timeout: 10
+
+  # === SECTION 3: Creating Your First Attestation ===
+
+  - type: info
+    title: "Creating Attestations"
+    content: |
+      Witness creates attestations by running commands and collecting evidence.
+      
+      The basic syntax is:
+      ```
+      witness run [attestor-options] -- <your-command>
+      ```
+
+      Witness will:
+      1. Execute your command
+      2. Collect evidence using attestors
+      3. Create a signed attestation
+      4. Output the attestation (in-toto format)
+
+      Let's start with a simple example!
+
+  - type: command
+    id: "setup-test-directory"
+    prompt: "Create a test directory"
+
+    pre_content: |
+      First, let's create a workspace for our attestation examples.
+      This will help keep our test files organized.
+
+    example: "mkdir -p ~/witness-demo && cd ~/witness-demo"
+
+    accepted_commands:
+      - "mkdir -p ~/witness-demo && cd ~/witness-demo"
+      - "mkdir -p witness-demo && cd witness-demo"
+      - "mkdir witness-demo && cd witness-demo"
+
+    validation:
+      type: "exit_code"
+      expected: 0
+
+    post_content: |
+      ✅ Workspace created! We're now in our demo directory.
+
+    timeout: 10
+    allow_skip: false
+
+  - type: command
+    id: "create-sample-script"
+    prompt: "Create a sample build script"
+
+    pre_content: |
+      Let's create a simple script that represents a build step.
+      In real scenarios, this could be `go build`, `npm run build`, etc.
+
+    example: "echo 'echo Building application...' > build.sh && chmod +x build.sh"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "build.sh"
+
+    post_content: |
+      ✅ Build script created! This simulates a real build process.
+      
+      The script is executable and ready to be attested by Witness.
+
+    timeout: 10
+    allow_skip: false
+
+  - type: command
+    id: "first-attestation"
+    prompt: "Run your first attestation"
+
+    pre_content: |
+      Now let's create our first attestation! We'll use the `command-run` attestor
+      to capture evidence about our build command.
+      
+      The `-o` flag specifies where to save the attestation file.
+
+    example: "witness run -o build-attestation.json -- ./build.sh"
+
+    accepted_commands:
+      - "witness run -o build-attestation.json -- ./build.sh"
+      - "witness run -o build-attestation.json -- sh build.sh"
+      - "witness run -o build-attestation.json -- bash build.sh"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "build-attestation.json"
+
+    alternative_validations:
+      - type: "output_contains"
+        patterns:
+          - "Building application"
+
+    post_content: |
+      🎉 **First attestation created!**
+      
+      Witness has:
+      - Executed your build script
+      - Captured metadata about the command
+      - Created a signed attestation in `build-attestation.json`
+      
+      This attestation can now be used to prove that this build step occurred.
+
+    success_msg: "✅ Attestation created successfully!"
+    fail_msg: "❌ Attestation failed. Make sure build.sh exists and is executable."
+
+    hints:
+      - level: 1
+        text: "Use: witness run -o build-attestation.json -- ./build.sh"
+      - level: 2
+        text: "Make sure you're in the witness-demo directory"
+      - level: 3
+        text: "The -- separates witness options from the command to run"
+
+    timeout: 30
+    allow_skip: false
+
+  - type: command
+    id: "inspect-attestation"
+    prompt: "Inspect the attestation"
+
+    pre_content: |
+      Let's look at what Witness captured. The attestation is in JSON format
+      and contains detailed information about the command execution.
+
+    example: "cat build-attestation.json | head -20"
+
+    accepted_commands:
+      - "cat build-attestation.json | head -20"
+      - "cat build-attestation.json | head -n 20"
+      - "head -20 build-attestation.json"
+      - "cat build-attestation.json"
+
+    validation:
+      type: "output_contains"
+      patterns:
+        - "type"
+        - "predicate"
+      any_match: true
+
+    post_content: |
+      📋 The attestation contains:
+      - **Type**: The attestation format (in-toto)
+      - **Predicate**: Evidence collected by attestors
+      - **Subject**: What was being built/tested
+      - **Signature**: Cryptographic proof of authenticity
+      
+      This structured format allows automated verification!
+
+    timeout: 10
+    allow_skip: true
+
+  # === SECTION 4: Understanding Attestors ===
+
+  - type: info
+    title: "Working with Attestors"
+    content: |
+      **Attestors** are plugins that collect specific types of evidence.
+      
+      Common attestors include:
+      
+      - **command-run**: Captures command execution details
+      - **git**: Records Git repository information
+      - **environment**: Captures environment variables
+      - **product**: Records file hashes of outputs
+      - **material**: Records file hashes of inputs
+      
+      You can use multiple attestors to build comprehensive attestations!
+
+  - type: command
+    id: "git-attestor-setup"
+    prompt: "Initialize a Git repository"
+
+    pre_content: |
+      Let's use the Git attestor to prove which code version was used.
+      First, we need a Git repository.
+
+    example: "git init && git config user.email 'demo@example.com' && git config user.name 'Demo User'"
+
+    validation:
+      type: "exit_code"
+      expected: 0
+
+    post_content: |
+      ✅ Git repository initialized! Now we can use the git attestor.
+
+    timeout: 15
+    allow_skip: true
+
+  - type: command
+    id: "git-attestation"
+    prompt: "Create attestation with Git info"
+
+    pre_content: |
+      Now let's create an attestation that includes Git repository information.
+      The `-a git` flag enables the Git attestor.
+
+    example: "git add . && git commit -m 'Initial commit' && witness run -a git -o git-attestation.json -- echo 'build complete'"
+
+    accepted_commands:
+      - "git add . && git commit -m 'Initial commit' && witness run -a git -o git-attestation.json -- echo 'build complete'"
+      - "git add . && git commit -m 'Initial commit' && witness run -a git -o git-attestation.json -- echo build complete"
+
+    validation:
+      type: "file_exists"
+      files:
+        - "git-attestation.json"
+
+    alternative_validations:
+      - type: "exit_code"
+        expected: 0
+
+    post_content: |
+      🎉 **Git attestation created!**
+      
+      This attestation includes:
+      - Commit hash
+      - Branch name
+      - Repository URL (if remote exists)
+      - Author information
+      
+      This proves exactly which code version was used in the build!
+
+    success_msg: "✅ Git attestation created with repository metadata!"
+    fail_msg: "❌ Git attestation failed. Make sure Git is configured properly."
+
+    hints:
+      - level: 1
+        text: "First commit your files with: git add . && git commit -m 'Initial commit'"
+      - level: 2
+        text: "Then run: witness run -a git -o git-attestation.json -- echo 'build complete'"
+      - level: 3
+        text: "The -a flag specifies which attestors to use"
+
+    timeout: 30
+    allow_skip: true
+
+  # === SECTION 5: Understanding Policies ===
+
+  - type: info
+    title: "Policies and Verification"
+    content: |
+      **Policies** define what your supply chain should look like.
+      
+      A policy specifies:
+      - **Required steps**: What must happen (build, test, scan)
+      - **Required attestors**: What evidence must be collected
+      - **Public keys**: Who can sign attestations
+      - **Expected values**: What the evidence should contain
+      
+      ### Verification Process:
+      
+      1. Collect all attestations from your pipeline
+      2. Define a policy (YAML file)
+      3. Run `witness verify` with the policy
+      4. Witness checks that all requirements are met
+      
+      If verification passes, you know your supply chain is intact!
+
+    callouts:
+      - type: "tip"
+        text: "Policies act like contracts - they define trust boundaries in your supply chain"
+
+    wait_for_continue: true
+
+  # === SECTION 6: Quiz ===
+
+  - type: quiz
+    title: "Test Your Knowledge"
+    questions:
+      - id: "q1"
+        question: "What is the primary purpose of Witness?"
+        type: "multiple_choice"
+        options:
+          - "To build software applications"
+          - "To create verifiable attestations about supply chain steps"
+          - "To deploy containers to production"
+          - "To manage Git repositories"
+        answer: 1
+        explanation: |
+          Witness creates **verifiable attestations** about your software supply chain.
+          It records what happened during build, test, and deployment steps.
+
+      - id: "q2"
+        question: "What does an attestor do in Witness?"
+        type: "multiple_choice"
+        options:
+          - "Compiles source code"
+          - "Deploys applications"
+          - "Collects evidence about a specific aspect of the build"
+          - "Manages container registries"
+        answer: 2
+        explanation: |
+          **Attestors** are plugins that collect specific types of evidence,
+          like Git information, command execution details, or file hashes.
+
+      - id: "q3"
+        question: "What framework does Witness build upon?"
+        type: "multiple_choice"
+        options:
+          - "Docker"
+          - "Kubernetes"
+          - "in-toto"
+          - "SLSA"
+        answer: 2
+        explanation: |
+          Witness is built on the **in-toto** framework, which provides a
+          standardized way to secure software supply chains with attestations.
+
+  # === SECTION 7: Challenge ===
+
+  - type: challenge
+    title: "🚀 Challenge: Multi-Attestor Pipeline"
+    description: |
+      Now it's your turn to create a comprehensive attestation!
+      
+      **Your Task:**
+      Create a multi-step attestation that includes:
+      1. Git repository information
+      2. Command execution details
+      3. Save it to a file called `challenge-attestation.json`
+      
+      **Hint:** You can combine multiple attestors using the `-a` flag multiple times,
+      or use the default attestors.
+      
+      **Bonus:** Try adding environment variables with `-a environment`
+
+    verification:
+      type: "custom"
+      checks:
+        - type: "file_exists"
+          path: "challenge-attestation.json"
+        - type: "file_contains"
+          path: "challenge-attestation.json"
+          pattern: "type.*attestation"
+
+    hints:
+      - level: 1
+        text: "Use: witness run -a git -a command-run -o challenge-attestation.json -- <command>"
+      - level: 2
+        text: "Example command: witness run -a git -o challenge-attestation.json -- echo 'Challenge complete'"
+      - level: 3
+        text: "Full example: witness run -a git -a environment -o challenge-attestation.json -- ./build.sh"
+
+    success_msg: "🎉 Challenge complete! You've mastered multi-attestor attestations!"
+
+    allow_skip: true
+
+conclusion:
+  title: "What's Next?"
+  content: |
+    🎓 **Congratulations!** You've learned:
+    - What Witness is and why supply chain attestation matters
+    - How to create attestations with Witness
+    - Understanding attestors and their purposes
+    - The role of policies in verification
+    - How in-toto attestations secure your supply chain
+
+    ### Next Steps:
+    - Learn about **Witness Policies** (advanced verification)
+    - Explore **KMS Signers** for production signing
+    - Integrate Witness into your **CI/CD pipeline**
+    - Study **in-toto attestation format** in detail
+
+    ### Additional Resources:
+    - [Witness Documentation](https://witness.dev/docs/)
+    - [in-toto Project](https://in-toto.io/)
+    - [SLSA Framework](https://slsa.dev/)
+    - [Supply Chain Security Guide](https://github.com/in-toto/witness)
+
+  badges:
+    - id: "witness-basics"
+      name: "Witness Fundamentals"
+      icon: "🔐"
+    - id: "first-attestation"
+      name: "First Attestation"
+      icon: "📋"
+    - id: "supply-chain-security"
+      name: "Supply Chain Security"
+      icon: "🛡️"
