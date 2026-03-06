@@ -1,3 +1,13 @@
+```
+ _____                 _   ____  _          _ _
+|_   _| __ _   _  ___ | |_/ ___|| |__   ___| | |
+  | || '__| | | |/ _ \| __\___ \| '_ \ / _ \ | |
+  | || |  | |_| | (_) | |_ ___) | | | |  __/ | |
+  |_||_|   \__, |\___/ \__|____/|_| |_|\___|_|_|
+           |___/
+       🚀 Interactive Learning in Your Terminal
+```
+
 # tryoutshell
 
 An interactive, terminal-based learning tool that lets you explore security topics and tools without leaving your shell.
