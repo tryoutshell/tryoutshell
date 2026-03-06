@@ -6,23 +6,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "tryoutshell",
-	Short: "\ntry everything from terminal no need to look at website",
-	//	Long: `A longer description that spans multiple lines and likely contains
-	//examples and usage of using your application. For example:
-	//
-	//Cobra is a CLI library for Go that empowers applications.
-	//This application is a tool to generate the needed files
-	//to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Short: "Interactive terminal-based learning tool for DevSecOps and developer topics",
+	Long: `TryOutShell — Interactive Learning in Your Terminal
+
+Explore security, containers, CI/CD, and developer tools with hands-on
+lessons, quizzes, and an AI-powered blog reader — all from your terminal.
+
+Commands:
+  start         Start an interactive learning session
+  list          Browse available organizations and lessons
+  present       Present a markdown file as terminal slides
+  quiz          Launch quiz mode for a lesson
+  read          Read a blog/article in a split-pane TUI with AI chat
+  saved         List and open saved articles
+  progress      Show your learning progress
+  update        Check for and download lesson updates
+  completion    Generate shell completion scripts`,
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -30,15 +33,4 @@ func Execute() {
 	}
 }
 
-func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tryoutshell.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	rootCmd.AddCommand()
-}
+func init() {}

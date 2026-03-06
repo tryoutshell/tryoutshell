@@ -1,0 +1,29 @@
+id: owasp-top10
+title: "OWASP Top 10 (2021)"
+description: "The ten most critical web application security risks with real examples and mitigations"
+author: "TryOutShell"
+tags: ["security", "owasp", "web-security", "appsec"]
+difficulty: "intermediate"
+duration: "30 min"
+version: "1.0"
+quiz:
+  - question: "Which OWASP Top 10 category covers SQL injection?"
+    options: ["A01 Broken Access Control", "A02 Cryptographic Failures", "A03 Injection", "A04 Insecure Design"]
+    answer: 2
+    explain: "Injection (A03) covers SQL injection, NoSQL injection, OS command injection, and LDAP injection."
+  - question: "What is the #1 risk in the OWASP Top 10 2021?"
+    options: ["Injection", "Broken Access Control", "Cryptographic Failures", "SSRF"]
+    answer: 1
+    explain: "Broken Access Control moved to #1 in the 2021 edition, up from #5 in 2017."
+  - question: "Which category addresses storing passwords in plain text?"
+    options: ["A01 Broken Access Control", "A02 Cryptographic Failures", "A05 Security Misconfiguration", "A07 Auth Failures"]
+    answer: 1
+    explain: "A02 Cryptographic Failures covers sensitive data exposure including plaintext password storage."
+  - question: "What is SSRF?"
+    options: ["Server-Side Request Forgery", "Secure Socket Relay Framework", "Server Session Request Failure", "Secure Server Redirect Function"]
+    answer: 0
+    explain: "SSRF (Server-Side Request Forgery) tricks a server into making requests to unintended locations, potentially accessing internal services."
+  - question: "Which practice helps prevent Injection attacks?"
+    options: ["Using longer passwords", "Parameterized queries / prepared statements", "HTTPS only", "Rate limiting"]
+    answer: 1
+    explain: "Parameterized queries separate SQL code from data, preventing attackers from injecting malicious SQL."

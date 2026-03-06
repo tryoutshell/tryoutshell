@@ -4,23 +4,24 @@ sidebar_position: 2
 
 # Info Steps
 
-Info steps display educational content without requiring user interaction (except pressing Enter to continue).
+Info steps display educational content without requiring command execution. The user reads the content and presses Enter to continue.
 
 ## Purpose
 
 Use info steps to:
 - Explain concepts and theory
 - Provide context before hands-on steps
-- Show diagrams or examples
+- Show diagrams and examples
 - Give tips and warnings
 
 ## Basic Structure
-````yaml
+
+```yaml
 - type: info
   title: "Step Title"
   content: |
-    Your content here with markdown support.
-````
+    Your content here with **Markdown** support.
+```
 
 ## Fields Reference
 
@@ -28,7 +29,7 @@ Use info steps to:
 |-------|------|----------|-------------|
 | `type` | `"info"` | Yes | Identifies this as an info step |
 | `title` | string | Yes | Step heading |
-| `content` | string (multiline) | Yes | Main text (Markdown supported) |
+| `content` | string | Yes | Main text (Markdown supported) |
 | `highlights` | list | No | Inline text highlights |
 | `code_blocks` | list | No | Code examples with labels |
 | `callouts` | list | No | Tips, warnings, info boxes |
@@ -36,84 +37,112 @@ Use info steps to:
 | `wait_for_continue` | boolean | No | Pause until Enter (default: true) |
 
 ## Simple Example
-````yaml
+
+```yaml
 - type: info
   title: "What is Docker?"
   content: |
-    **Docker** is a platform for developing and running applications
-    in lightweight, portable containers.
-     "Author Name"
-  version: "1.0"
-  updated_at: "2025-01-15"
-````
+    **Docker** is a platform for developing and running
+    applications in lightweight, portable containers.
 
-## Required vs Optional
+    Containers package an application with all its dependencies,
+    ensuring it runs the same everywhere.
+```
 
-| Category | Fields |
-|----------|--------|
-| **Required** | `id`, `org`, `title`, `description`, `difficulty`, `duration`, `tags` |
-| **Optional** | `prerequisites`, `author`, `version`, `updated_at` |
+## Full Example with All Fields
 
-## Quick Example
-````yaml
-metadata:
-  id: "cosign-basics"
-  org: "chainguard"
-  title: "Introduction to Cosign"
-  description: "Learn to sign and verify container images"
-  difficulty: "beginner"
-  duration: "20 min"
-  tags: ["cosign", "signing", "security"]
-````
+```yaml
+- type: info
+  title: "How Signing Works"
+  content: |
+    Cosign uses **public key cryptography** to sign images:
 
-## Deep Dive
+    1. **Generate a key pair** (public + private)
+    2. **Sign the image** with your private key
+    3. **Verify** using the public key
 
-For detailed information about each field:
+    > 💡 Anyone can verify, but only you can sign.
 
-- [Required Fields](./required-fields) - Essential fields every lesson needs
-- [Optional Fields](./optional-fields) - Additional metadata for enhanced discovery
+  highlights:
+    - text: "public key cryptography"
+      style: "bold"
+    - text: "cosign.key"
+      style: "code"
 
-## Validation
+  code_blocks:
+    - label: "macOS (Homebrew)"
+      code: "brew install cosign"
+      language: "bash"
+    - label: "Linux"
+      code: |
+        curl -LO https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+        sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+      language: "bash"
 
-TryOutShell validates metadata when you run:
-````bash
-tryoutshell validate my-lesson.yaml
-````
+  callouts:
+    - type: "tip"
+      text: "Use keyless signing in production"
+    - type: "warning"
+      text: "Never commit private keys to Git!"
 
-Common validation errors:
-- Missing required fields
-- Invalid `difficulty` value (must be: beginner, intermediate, advanced)
-- Invalid `id` format (must be kebab-case: `my-lesson-name`)
-- Empty `tags` list
+  diagram: |
+    Registry              Cosign                Your Cluster
+    ┌────────┐            ┌──────┐             ┌───────────┐
+    │ Image  │───sign────▶│ .sig │────verify──▶│ ✓ Deploy  │
+    └────────┘            └──────┘             └───────────┘
+
+  wait_for_continue: true
+```
+
+## Highlights
+
+Style specific text in the content:
+
+```yaml
+highlights:
+  - text: "myapp:latest"
+    style: "code"         # rendered as inline code
+  - text: "Sigstore"
+    style: "bold"         # rendered bold
+  - text: "important"
+    style: "highlight"    # rendered with background color
+```
+
+## Code Blocks
+
+Show labeled code snippets:
+
+```yaml
+code_blocks:
+  - label: "macOS"
+    code: "brew install cosign"
+    language: "bash"
+  - label: "Go Install"
+    code: "go install github.com/sigstore/cosign/v2/cmd/cosign@latest"
+    language: "bash"
+```
+
+## Callouts
+
+Add contextual notes:
+
+```yaml
+callouts:
+  - type: "tip"
+    text: "Helpful advice"
+  - type: "warning"
+    text: "Be careful about this"
+  - type: "danger"
+    text: "Serious risk"
+  - type: "info"
+    text: "Additional information"
+```
 
 ## Best Practices
 
-### IDs Should Be Descriptive
-
-✅ Good: `docker-networking-basics`
-❌ Bad: `lesson1`, `test`, `my-lesson`
-
-### Titles Should Be Clear
-
-✅ Good: "Container Image Signing with Cosign"
-❌ Bad: "Learn Stuff", "Tutorial", "Lesson 5"
-
-### Descriptions Should Be Concise
-
-Keep descriptions to 1-2 sentences that clearly explain what the lesson covers.
-
-✅ Good: "Learn to sign container images with Cosign and verify signatures for supply chain security"
-❌ Bad: "This lesson will teach you about Cosign which is a tool that..."
-
-### Tags Should Be Specific
-
-Use focused keywords that help users find your lesson.
-
-✅ Good: `["kubernetes", "security", "rbac"]`
-❌ Bad: `["stuff", "things", "tutorial"]`
-
-## Next Steps
-
-- [Required Fields Reference](./required-fields)
-- [Optional Fields Reference](./optional-fields)
-- [Back to Lesson Structure](../getting-started/lesson-structure)
+- Keep content focused on **one concept** per info step
+- Use Markdown formatting for readability
+- Add diagrams for complex workflows
+- Use callouts sparingly — one or two per step
+- Set `wait_for_continue: true` for important steps
+- Follow info steps with command steps for hands-on practice

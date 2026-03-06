@@ -6,7 +6,8 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Sandbox Debug Test ===\n")
+	fmt.Println("=== Sandbox Debug Test ===")
+	fmt.Println()
 
 	// Create runner
 	r := runner.NewRunner()

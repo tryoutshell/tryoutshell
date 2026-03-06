@@ -5,81 +5,90 @@ slug: /
 
 # Welcome to TryOutShell
 
-**TryOutShell** is a CLI-native interactive learning engine that brings guided hands-on labs directly into your terminal — no browser UI, no cloud VMs required.
+**TryOutShell** is an interactive, terminal-based learning tool that brings hands-on lessons, quizzes, and an AI-powered blog reader directly into your terminal.
 
 ## What is TryOutShell?
 
-TryOutShell is a command-line learning environment where users can:
+TryOutShell is a CLI learning platform where you can:
 
-- Learn real-world DevOps & cybersecurity workflows
-- Practice hands-on with tools like Cosign, Witness, In-Toto, and Chainguard
-- Get interactive, step-by-step guidance right in their terminal
-- Receive context-aware feedback on commands they execute
+- Learn DevSecOps, containers, CI/CD, Git, and security — step-by-step in your terminal
+- Take quizzes to test your knowledge
+- Read any blog post in a split-pane TUI with an AI assistant
+- Track your progress across all lessons
+- Add new lessons with just YAML + Markdown (no Go code needed)
 
-**Think of it as:** *Katacoda + Charm.sh + Learn-by-Doing → in your own terminal*
-
-## Vision
-
-TryOutShell brings interactive learning experiences where engineers are most comfortable: **the CLI**. Users type commands, get real output from their system, and receive beautifully formatted feedback — all inside a custom terminal UI built with Charm.sh's Bubble Tea and Lipgloss.
+**Think of it as:** *Interactive slides + hands-on labs + AI reader — all in your terminal*
 
 ## Core Features
 
-- ✅ **CLI-Native**: No web browser required
-- ✅ **Interactive Learning**: Step-by-step guided lessons
-- ✅ **Real Environment**: Practice on your actual system
-- ✅ **Beautiful UI**: Built with Charm.sh Bubble Tea & Lipgloss
-- ✅ **Open Source**: All lessons and binaries are transparent
-- ✅ **Extensible**: Create your own lessons in YAML
-
-## How It Works
-
-1. **Install TryOutShell** via curl, brew, or GitHub releases
-2. **Browse available lessons** in your terminal
-3. **Launch a lesson** and follow interactive steps
-4. **Execute commands** and get real-time validation
-5. **Complete challenges** and earn badges
-
-## Installation
-```bash
-# Quick install (recommended)
-curl -sSL https://tryoutshell.lol | sh
-
-# Or via Homebrew
-brew install tryoutshell
-
-# Or via GitHub Releases
-# Download from https://github.com/your-org/tryoutshell/releases
-```
-
-This script will:
-- Download and install the latest tryoutshell binary
-- Clone or update the default lesson repository (`~/.tryoutshell/lessons/`)
-- Verify SHA256 checksum for security
-- Add tryoutshell to your `$PATH`
-
-All binaries and lessons are **open-source** and **cryptographically signed** for transparency.
+- **Slide-Based Lessons** — Markdown slides with quizzes, no code needed to contribute
+- **Interactive Lessons** — Step-by-step labs with real command execution and validation
+- **AI Blog Reader** — Read any URL in a split-pane TUI with OpenAI / Anthropic / Gemini chat
+- **Quiz Mode** — Multiple-choice quizzes with explanations and score tracking
+- **Progress Tracking** — Track completion, quiz scores, and time spent
+- **Beautiful TUI** — Built with Bubble Tea, Glamour, and Lip Gloss
+- **Shell Completions** — bash, zsh, fish support
+- **Remote Updates** — Download new lessons without rebuilding
 
 ## Quick Start
 
-After installation, launch your first lesson:
 ```bash
-tryoutshell start docker-basics
+# Install
+git clone https://github.com/tryoutshell/tryoutshell.git
+cd tryoutshell
+go build -o tryoutshell .
+sudo mv tryoutshell /usr/local/bin/
+
+# Browse lessons
+tryoutshell list
+
+# Start a lesson
+tryoutshell start docker --lesson docker-101
+
+# Take a quiz
+tryoutshell quiz docker docker-101
+
+# Read a blog post with AI chat
+OPENAI_API_KEY=sk-... tryoutshell read https://blog.sigstore.dev/cosign-2-0
+
+# Check your progress
+tryoutshell progress
 ```
+
+## Two Lesson Formats
+
+TryOutShell supports two lesson formats:
+
+### 1. Data-Only Lessons (Recommended for new content)
+
+Just YAML metadata + Markdown slides. **No Go code needed.**
+
+```
+lessons/docker/docker-101/
+  lesson.yaml     ← metadata + quiz questions
+  slides.md       ← slide content (--- separated)
+  exercises.sh    ← optional exercises
+```
+
+### 2. Interactive Lessons (Legacy format)
+
+Rich YAML with step-by-step command execution, validation, and inline quizzes.
+
+```
+lessons/sigstore/cosign-sign-verify.yaml
+```
+
+Both formats are auto-discovered — just put files in the `lessons/` directory.
 
 ## What's Next?
 
-- 📚 [Getting Started Guide](./getting-started/) - Install and run your first lesson
-- 📝 [Creating Lessons](./getting-started/minimal-example) - Build your own interactive lessons
-- 🔧 [Step Types Reference](./step-types/) - Learn about all available step types
-- 💡 [Best Practices](./guides/best-practices) - Tips for writing great lessons
+- [Getting Started](./getting-started/) — Install and run your first lesson
+- [Creating Lessons](./getting-started/creating-lessons) — Build a data-only lesson in 5 minutes
+- [Step Types Reference](./step-types/) — All step types for interactive lessons
+- [AI Blog Reader](./features/reader) — Using `tryoutshell read`
 
-## Community & Support
+## Community
 
-- 🐛 Report issues on [GitHub](https://github.com/your-org/tryoutshell/issues)
-- 💬 Join our [Discord](https://discord.gg/tryoutshell)
-- 📖 Browse [example lessons](./examples/)
-- ⭐ Star us on [GitHub](https://github.com/your-org/tryoutshell)
-
----
-
-Ready to start learning? Head to the [Getting Started](./getting-started/) guide!
+- [GitHub](https://github.com/tryoutshell/tryoutshell) — Star, fork, and contribute
+- [Issues](https://github.com/tryoutshell/tryoutshell/issues) — Report bugs or request features
+- [Contributing Guide](https://github.com/tryoutshell/tryoutshell/blob/main/CONTRIBUTING.md) — How to add lessons

@@ -6,15 +6,16 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"github.com/tryoutshell/tryoutshell/internal/lesson"
 	lessons_pkg "github.com/tryoutshell/tryoutshell/internal/lessons"
 	"github.com/tryoutshell/tryoutshell/internal/ui"
 	"github.com/tryoutshell/tryoutshell/types"
 )
 
 var (
-	lesson string
-	theme  string
-	color  string
+	lessonFlag string
+	themeFlag  string
+	colorFlag  string
 )
 
 var StartCmd = &cobra.Command{
@@ -27,22 +28,20 @@ var StartCmd = &cobra.Command{
 }
 
 func startHandler(cmd *cobra.Command, args []string) {
+	allLessons := lesson.DiscoverLessons()
+	orgList := buildOrgList(allLessons)
+
 	var selectedOrg string
 	var selectedLesson string
 
-	orgList := getOrganizationList()
-
-	// Case 1: No args - show org selection
 	if len(args) == 0 {
 		selectedOrg = selectOrganization(orgList)
 		if selectedOrg == "" {
-			return // User quit
+			return
 		}
 	} else {
-		// Case 2: Org provided
 		selectedOrg = args[0]
 
-		// Validate org exists
 		orgExists := false
 		for _, org := range orgList {
 			if org.Id == selectedOrg {
@@ -50,13 +49,11 @@ func startHandler(cmd *cobra.Command, args []string) {
 				break
 			}
 		}
-
 		if !orgExists {
 			log.Fatalf("Organization '%s' not found", selectedOrg)
 		}
 	}
 
-	// Get org details
 	var orgDetail types.OrganizationDetails
 	for _, org := range orgList {
 		if org.Id == selectedOrg {
@@ -65,9 +62,8 @@ func startHandler(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Case 3: Lesson flag provided
-	if lesson != "" {
-		selectedLesson = lesson
+	if lessonFlag != "" {
+		selectedLesson = lessonFlag
 		lessonExists := false
 		for _, l := range orgDetail.Lessons {
 			if l == selectedLesson {
@@ -75,15 +71,12 @@ func startHandler(cmd *cobra.Command, args []string) {
 				break
 			}
 		}
-
 		if !lessonExists {
 			log.Fatalf("Lesson '%s' not found in organization '%s'", selectedLesson, selectedOrg)
 		}
 	} else {
-		// Case 4: Show lesson selection
 		selectedLesson = selectLesson(selectedOrg, orgDetail.Name, orgDetail.Lessons)
 		if selectedLesson == "" {
-			// Instead of calling StartCmd.Run again — just call the function itself
 			startHandler(cmd, []string{})
 			return
 		}
@@ -91,13 +84,24 @@ func startHandler(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("🚀 Loading lesson: %s/%s\n\n", selectedOrg, selectedLesson)
 
+	dl := lesson.FindLesson(allLessons, selectedOrg, selectedLesson)
+	if dl != nil && dl.HasSlides && !dl.HasLegacy {
+		slidesContent, err := lesson.LoadSlides(dl.Dir)
+		if err != nil {
+			log.Fatalf("Error loading slides: %v", err)
+		}
+		if err := ui.LaunchSlideLesson(dl, slidesContent); err != nil {
+			log.Fatalf("Error launching lesson: %v", err)
+		}
+		return
+	}
+
 	if err := ui.LaunchInteractive(selectedOrg, selectedLesson); err != nil {
 		log.Fatalf("Error launching UI: %v", err)
 	}
 }
 
 func selectOrganization(orgs []types.OrganizationDetails) string {
-	// Convert to OrgItem
 	orgItems := make([]ui.OrgItem, len(orgs))
 	for i, org := range orgs {
 		orgItems[i] = ui.OrgItem{
@@ -124,7 +128,6 @@ func selectOrganization(orgs []types.OrganizationDetails) string {
 }
 
 func selectLesson(orgID, orgName string, lessonIDs []string) string {
-	// Load lesson metadata
 	lessons := lessons_pkg.GetAllLessonMetadata(orgID, lessonIDs)
 
 	m := ui.NewLessonListModel(orgID, orgName, lessons)
@@ -137,7 +140,7 @@ func selectLesson(orgID, orgName string, lessonIDs []string) string {
 
 	if lessonModel, ok := finalModel.(ui.LessonListModel); ok {
 		if lessonModel.WasQuit() {
-			return "" // User pressed q/esc
+			return ""
 		}
 		return lessonModel.SelectedLesson()
 	}
@@ -147,7 +150,7 @@ func selectLesson(orgID, orgName string, lessonIDs []string) string {
 
 func init() {
 	rootCmd.AddCommand(StartCmd)
-	StartCmd.Flags().StringVarP(&lesson, "lesson", "l", "", "lesson ID to practice")
-	StartCmd.Flags().StringVarP(&theme, "theme", "t", "default", "UI theme")
-	StartCmd.Flags().StringVar(&color, "color", "", "custom color")
+	StartCmd.Flags().StringVarP(&lessonFlag, "lesson", "l", "", "lesson ID to practice")
+	StartCmd.Flags().StringVarP(&themeFlag, "theme", "t", "default", "UI theme")
+	StartCmd.Flags().StringVar(&colorFlag, "color", "", "custom color")
 }

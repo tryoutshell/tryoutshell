@@ -4,35 +4,37 @@ sidebar_position: 1
 
 # Step Types Overview
 
-Steps are the core of TryOutShell lessons. Each step has a `type` that determines its behavior and interaction model.
+Steps are the core of interactive TryOutShell lessons. Each step has a `type` that determines its behavior.
+
+> **Note**: Step types apply to the interactive (legacy) lesson format. Data-only lessons use `slides.md` for content and `lesson.yaml` for quizzes.
 
 ## Available Step Types
 
-| Type | Purpose | Interaction |
-|------|---------|-------------|
-| [`info`](./info-steps) | Display educational content | Read and continue |
-| [`command`](./command-steps) | Execute and validate commands | Type and run commands |
+| Type | Purpose | User Interaction |
+|------|---------|-----------------|
+| [`info`](./info-steps) | Display educational content | Read and press Enter |
+| [`command`](./command-steps) | Execute shell commands | Type commands, get validation |
 | [`quiz`](./quiz-steps) | Test knowledge | Answer multiple-choice questions |
 | [`challenge`](./challenge-steps) | Open-ended tasks | Complete complex objectives |
-| [`interview_prep`](./interview-prep-steps) | Practice interview questions | Write and reflect |
+| [`interview_prep`](./interview-prep-steps) | Practice questions | Reflect and write answers |
 
-## Quick Comparison
+## When to Use Each Type
 
-### Info Steps
-**Best for:** Explanations, context, theory
-````yaml
+### info — Explain concepts
+
+```yaml
 - type: info
   title: "What is Docker?"
-  content: "Docker is a containerization platform..."
-````
+  content: |
+    **Docker** is a platform for running applications
+    in lightweight containers.
+```
 
-[→ Learn more about info steps](./info-steps)
+Best for: theory, context, diagrams, tips before hands-on steps.
 
----
+### command — Hands-on practice
 
-### Command Steps
-**Best for:** Hands-on practice, executing commands
-````yaml
+```yaml
 - type: command
   prompt: "Check Docker version"
   example: "docker --version"
@@ -41,74 +43,81 @@ Steps are the core of TryOutShell lessons. Each step has a `type` that determine
     contains: "Docker version"
   success_msg: "✅ Docker is installed!"
   fail_msg: "❌ Docker not found"
-````
+```
 
-[→ Learn more about command steps](./command-steps)
+Best for: executing real commands with output validation.
 
----
+### quiz — Knowledge check
 
-### Quiz Steps
-**Best for:** Knowledge checks, reinforcement
-````yaml
+```yaml
 - type: quiz
   title: "Quick Check"
   questions:
     - id: "q1"
       question: "What command lists Docker images?"
       type: "multiple_choice"
-      options:
-        - "docker ps"
-        - "docker images"
-        - "docker list"
+      options: ["docker ps", "docker images", "docker list"]
       answer: 1
-      explanation: "`docker images` lists all local images"
-````
+      explanation: "docker images lists all local images."
+```
 
-[→ Learn more about quiz steps](./quiz-steps)
+Best for: reinforcing key concepts after info/command steps.
 
----
+### challenge — Apply knowledge
 
-### Challenge Steps
-**Best for:** Applying knowledge, complex tasks
-````yaml
+```yaml
 - type: challenge
-  title: "Deploy Your Own App"
+  title: "Deploy Your App"
   description: |
-    Deploy a web application using what you've learned.
-
-    Requirements:
-    1. Create a Dockerfile
-    2. Build the image
-    3. Run the container on port 8080
+    Create a Dockerfile, build it, and run the container.
   verification:
     type: "custom"
     checks:
-      - type: "command_succeeds"
-        command: "curl -f http://localhost:8080"
-  success_msg: "🎉 Application deployed!"
-````
+      - type: "file_exists"
+        path: "Dockerfile"
+  success_msg: "🎉 Challenge complete!"
+```
 
-[→ Learn more about challenge steps](./challenge-steps)
+Best for: open-ended tasks where users demonstrate understanding.
 
----
+### interview_prep — Deeper thinking
 
-### Interview Prep Steps
-**Best for:** Reflection, deeper understanding
-````yaml
+```yaml
 - type: interview_prep
   title: "Think Deeper"
-  description: "Practice explaining concepts"
   questions:
-    - "Explain the difference between Docker images and containers"
+    - "Explain the difference between images and containers"
     - "How would you secure a production container?"
-    - "When would you use Docker Compose vs Kubernetes?"
   record_answers: true
-````
+```
 
-[→ Learn more about interview prep steps](./interview-prep-steps)
+Best for: reflection, preparing for technical interviews.
 
----
+## Choosing the Right Type
 
-## Choosing the Right Step Type
+| Scenario | Recommended Type |
+|----------|-----------------|
+| Explaining a concept | `info` |
+| User needs to run a command | `command` |
+| Testing if user understood | `quiz` |
+| User proves mastery | `challenge` |
+| Open-ended discussion | `interview_prep` |
 
-### Decision Tree
+## Recommended Lesson Flow
+
+A well-structured lesson typically follows this pattern:
+
+1. **info** — Introduce the concept
+2. **command** — Practice with guided commands
+3. **info** — Explain what happened
+4. **command** — More complex commands
+5. **quiz** — Check understanding
+6. **challenge** — Apply knowledge independently
+
+## Next Steps
+
+- [Info Steps](./info-steps) — Displaying content
+- [Command Steps](./command-steps) — Executing and validating commands
+- [Quiz Steps](./quiz-steps) — Multiple-choice questions
+- [Challenge Steps](./challenge-steps) — Open-ended tasks
+- [Interview Prep Steps](./interview-prep-steps) — Practice questions

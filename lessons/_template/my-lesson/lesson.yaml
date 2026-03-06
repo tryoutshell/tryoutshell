@@ -1,0 +1,20 @@
+# Lesson metadata - edit these fields for your lesson
+id: my-lesson
+title: "My Lesson Title"
+description: "A brief description of what this lesson teaches"
+author: "Your Name"
+tags: ["tag1", "tag2"]
+difficulty: "beginner"  # beginner | intermediate | advanced
+duration: "15 min"
+version: "1.0"
+
+# Quiz questions (optional but recommended)
+# Answer is 0-indexed
+quiz:
+  - question: "Example question?"
+    options:
+      - "Wrong answer"
+      - "Correct answer"
+      - "Another wrong answer"
+    answer: 1
+    explain: "Explanation of why this is the correct answer."

@@ -1,203 +1,129 @@
 ---
-sidebar_position: 2
+sidebar_position: 1
 ---
 
-# Required Metadata Fields
+# Metadata Fields
 
-Every lesson **must** include these fields in the `metadata` section.
+Lesson metadata identifies the lesson and controls how it appears in listings.
 
-## Field Reference
+## Data-Only Lessons (lesson.yaml)
 
-### `id`
+These fields go at the top level of `lesson.yaml`:
 
-**Type:** `string`
-**Format:** kebab-case (lowercase with hyphens)
-**Example:** `"cosign-sign-verify"`
+| Field | Required | Type | Description | Example |
+|-------|----------|------|-------------|---------|
+| `id` | Yes | string | Unique ID (kebab-case) | `"docker-101"` |
+| `title` | Yes | string | Human-readable title | `"Docker 101"` |
+| `description` | Yes | string | Brief summary (1-2 sentences) | `"Learn Docker basics"` |
+| `difficulty` | Yes | string | `beginner`, `intermediate`, `advanced` | `"beginner"` |
+| `duration` | Yes | string | Estimated time | `"20 min"` |
+| `version` | Yes | string | Lesson version | `"1.0"` |
+| `author` | No | string | Creator name | `"TryOutShell"` |
+| `tags` | No | list | Searchable keywords | `["docker", "containers"]` |
+| `quiz` | No | list | Quiz questions | See [Quiz Steps](../step-types/quiz-steps) |
 
-Unique identifier for the lesson. Used internally and in URLs.
+### Example
 
-**Rules:**
-- Must be unique across all lessons
-- Use kebab-case: `my-lesson-name`
-- Only alphanumeric characters and hyphens
-- No spaces or special characters
-````yaml
-id: "docker-networking-basics"  ✅
-id: "Docker Networking"         ❌ (spaces, capitals)
-id: "lesson_1"                  ❌ (underscores)
-````
+```yaml
+id: docker-101
+title: "Docker 101: Container Fundamentals"
+description: "Learn Docker from scratch — images, containers, Dockerfiles"
+author: "TryOutShell"
+tags: ["docker", "containers", "devops"]
+difficulty: "beginner"
+duration: "25 min"
+version: "1.0"
+```
 
----
+## Interactive Lessons (metadata section)
 
-### `org`
+These fields go inside the `metadata:` section of interactive YAML lessons:
 
-**Type:** `string`
-**Example:** `"chainguard"`
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `id` | Yes | string | Unique ID (kebab-case) |
+| `org` | Yes | string | Organization/topic ID |
+| `title` | Yes | string | Human-readable title |
+| `description` | Yes | string | Brief summary |
+| `difficulty` | Yes | string | `beginner`, `intermediate`, `advanced` |
+| `duration` | Yes | string | Estimated time |
+| `tags` | Yes | list | Searchable keywords |
+| `prerequisites` | No | list | Required tools or knowledge |
+| `author` | No | string | Creator name |
+| `version` | No | string | Lesson version |
+| `resources` | No | list | External links |
 
-Organization or team that created the lesson.
+### Example
 
-**Purpose:**
-- Groups lessons by creator
-- Enables filtering by organization
-- Shows authorship in UI
-````yaml
-org: "chainguard"     ✅
-org: "my-team"        ✅
-org: "acme-corp"      ✅
-````
-
----
-
-### `title`
-
-**Type:** `string`
-**Example:** `"Introduction to Cosign"`
-
-Human-readable title displayed to users.
-
-**Best Practices:**
-- Clear and descriptive
-- Capitalize major words
-- Keep under 60 characters
-- Avoid jargon in beginner lessons
-````yaml
-title: "Container Image Signing with Cosign"  ✅
-title: "Cosign Stuff"                         ❌ (vague)
-title: "How to Use Cosign to Sign Images and Verify Them in Production"  ❌ (too long)
-````
-
----
-
-### `description`
-
-**Type:** `string`
-**Length:** 1-2 sentences
-**Example:** `"Learn to sign and verify container images for supply chain security"`
-
-Brief description of what the lesson teaches.
-
-**Best Practices:**
-- Summarize the learning outcome
-- Keep it concise (under 150 characters)
-- Start with an action verb
-- Mention key tools/concepts
-````yaml
-description: "Learn to sign container images with Cosign and verify signatures"  ✅
-description: "This lesson teaches you about Cosign..."                           ❌ (wordy)
-description: "Cosign"                                                             ❌ (too brief)
-````
-
----
-
-### `difficulty`
-
-**Type:** `enum`
-**Values:** `"beginner"`, `"intermediate"`, `"advanced"`
-**Example:** `"beginner"`
-
-Skill level required for the lesson.
-
-**Guidelines:**
-
-| Level | Criteria | Example Topics |
-|-------|----------|----------------|
-| **beginner** | No prior knowledge required | "Introduction to Docker", "First Steps with Git" |
-| **intermediate** | Assumes basic familiarity | "Docker Networking", "Git Branching Strategies" |
-| **advanced** | Requires deep knowledge | "Kubernetes Operators", "Custom Admission Controllers" |
-````yaml
-difficulty: "beginner"      ✅
-difficulty: "intermediate"  ✅
-difficulty: "advanced"      ✅
-difficulty: "easy"          ❌ (invalid value)
-````
-
----
-
-### `duration`
-
-**Type:** `string`
-**Format:** `"X min"` or `"X hour"`
-**Example:** `"20 min"`
-
-Estimated time to complete the lesson.
-
-**Best Practices:**
-- Round to nearest 5 minutes
-- Test the actual time with real users
-- Include time for reading and thinking
-- Be realistic, not aspirational
-````yaml
-duration: "15 min"    ✅
-duration: "1 hour"    ✅
-duration: "45 min"    ✅
-duration: "15"        ❌ (no unit)
-duration: "quick"     ❌ (not specific)
-````
-
----
-
-### `tags`
-
-**Type:** `list of strings`
-**Example:** `["cosign", "signing", "security"]`
-
-Keywords for search and filtering.
-
-**Best Practices:**
-- Use 3-7 tags per lesson
-- Include tool names: `"docker"`, `"kubernetes"`
-- Include concepts: `"security"`, `"networking"`
-- Include categories: `"devops"`, `"cicd"`
-- Use lowercase
-- Be specific, not generic
-````yaml
-tags: ["docker", "containers", "networking"]     ✅
-tags: ["Docker", "Containers"]                   ❌ (capitals)
-tags: ["stuff", "things", "tutorial"]            ❌ (too generic)
-tags: []                                          ❌ (empty)
-````
-
-**Common Tags:**
-
-| Category | Examples |
-|----------|----------|
-| Tools | `docker`, `kubernetes`, `terraform`, `cosign` |
-| Concepts | `security`, `networking`, `cicd`, `monitoring` |
-| Domains | `devops`, `sre`, `platform-engineering` |
-| Skill Level | `fundamentals`, `advanced-topics` |
-
----
-
-## Complete Example
-````yaml
+```yaml
 metadata:
-  id: "kubernetes-rbac-basics"
-  org: "platform-team"
-  title: "Kubernetes RBAC Fundamentals"
-  description: "Learn to secure Kubernetes clusters with role-based access control"
-  difficulty: "intermediate"
-  duration: "30 min"
-  tags: ["kubernetes", "security", "rbac", "access-control"]
-````
+  id: "cosign-sign-verify"
+  org: "sigstore"
+  title: "Container Image Signing with Cosign"
+  description: "Learn to sign and verify container images"
+  difficulty: "beginner"
+  duration: "20 min"
+  prerequisites:
+    - "Docker installed"
+    - "Basic CLI experience"
+  tags: ["cosign", "signing", "supply-chain"]
+  author: "TryOutShell"
+  version: "1.0"
+  resources:
+    - title: "Cosign Docs"
+      url: "https://docs.sigstore.dev"
+      type: "docs"
+    - title: "Cosign GitHub"
+      url: "https://github.com/sigstore/cosign"
+      type: "github"
+```
 
-## Validation
+## Organization meta.yaml
 
-Check your metadata with:
-````bash
-tryoutshell validate my-lesson.yaml
-````
+Each org directory can have a `meta.yaml`:
 
-Common errors and fixes:
+```yaml
+id: docker
+name: "Docker"
+description: "Container runtime and tooling"
+logo: "🐳"
+```
 
-| Error | Fix |
-|-------|-----|
-| "Missing required field: id" | Add `id: "lesson-name"` |
-| "Invalid difficulty value" | Use `beginner`, `intermediate`, or `advanced` |
-| "ID must be kebab-case" | Change `My_Lesson` to `my-lesson` |
-| "Tags cannot be empty" | Add at least one tag: `tags: ["docker"]` |
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `id` | Yes | string | Org identifier |
+| `name` | Yes | string | Display name |
+| `description` | No | string | Brief description |
+| `logo` | No | string | Emoji or text icon |
 
-## Next Steps
+## Best Practices
 
-- [Optional Fields](./optional-fields) - Enhance your lesson metadata
-- [Lesson Structure](../getting-started/lesson-structure) - Build your lesson
-- [Best Practices](../guides/best-practices) - Write better lessons
+### IDs
+
+- Use kebab-case: `docker-101`, `cosign-sign-verify`
+- Be descriptive: `docker-networking-basics` not `lesson1`
+
+### Titles
+
+- Be specific: "Container Image Signing with Cosign"
+- Not vague: "Learn Stuff", "Tutorial 5"
+
+### Descriptions
+
+- 1-2 sentences maximum
+- Explain what the user will learn, not the tool's marketing pitch
+
+### Tags
+
+- Use specific keywords users would search for
+- Include both the tool name and the concept
+- Good: `["kubernetes", "rbac", "security"]`
+- Bad: `["stuff", "things", "tutorial"]`
+
+### Difficulty
+
+| Level | Target Audience |
+|-------|----------------|
+| `beginner` | No prior experience with this tool |
+| `intermediate` | Familiar with basics, learning advanced features |
+| `advanced` | Production use cases, deep internals |
