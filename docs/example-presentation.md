@@ -1,14 +1,17 @@
+---
+sidebar_position: 2
+---
+
 # Welcome to TryOutShell Slides
 
-Learn, explore, and present – all from your terminal.
+Learn, explore, and present — all from your terminal.
 
 ---
 
 ## What is TryOutShell?
 
-TryOutShell is a **terminal-based learning platform** that brings
-interactive lessons, quizzes, and now presentations right to your
-command line.
+TryOutShell is an **interactive terminal learning platform** that brings
+lessons, quizzes, presentations, and an AI blog reader to your CLI.
 
 > No browser needed. Just your terminal.
 
@@ -16,10 +19,12 @@ command line.
 
 ## Key Features
 
-- 🎓 **Interactive lessons** – run real commands and get instant feedback
-- 📝 **Quizzes** – test your knowledge without leaving the terminal
-- 🎞  **Slide presentations** – share ideas or read blog posts as slides
-- 🔍 **Search** – jump to any slide instantly with `/`
+- **Slide lessons** — YAML + Markdown, no code needed to contribute
+- **Interactive labs** — run real commands with validation
+- **Quiz mode** — multiple-choice with explanations and scoring
+- **AI blog reader** — read any URL in a split-pane TUI with chat
+- **Progress tracking** — completion, scores, and time spent
+- **Shell completions** — bash, zsh, fish
 
 ---
 
@@ -27,19 +32,20 @@ command line.
 
 | Key | Action |
 |-----|--------|
-| `space` / `→` | Next slide |
-| `←` | Previous slide |
+| `space` / `right` | Next slide |
+| `left` | Previous slide |
 | `gg` | First slide |
 | `G` | Last slide |
 | `<n>G` | Jump to slide n |
 | `/` | Search |
+| `?` | Help overlay |
 | `q` | Quit |
 
 ---
 
-## Code is a First-Class Citizen
+## Code Is First-Class
 
-Every slide can contain syntax-highlighted code blocks:
+Every slide renders syntax-highlighted code blocks:
 
 ```go
 package main
@@ -47,59 +53,60 @@ package main
 import "fmt"
 
 func main() {
-    fmt.Println("Hello from TryOutShell! 🐚")
+    fmt.Println("Hello from TryOutShell!")
 }
 ```
 
 ```bash
-# Run a lesson
-tryoutshell start sigstore --lesson cosign-101
-
-# Present a markdown file
-tryoutshell present my-talk.md
+tryoutshell start docker --lesson docker-101
+tryoutshell quiz docker docker-101
+tryoutshell read https://blog.sigstore.dev/cosign-2-0
 ```
 
 ---
 
-## Inspired by `slides`
+## Creating a Lesson
 
-This presentation mode is inspired by the excellent
-**maaslalani/slides** project.
+Just two files — no Go code needed:
 
-Key improvements in TryOutShell:
+```
+lessons/my-org/my-lesson/
+  lesson.yaml     # metadata + quiz questions
+  slides.md       # slide content (--- separated)
+```
 
-1. Deeply integrated with interactive lessons
-2. Syntax highlighting via **chroma**
-3. Search across all slides
-4. Navigate by slide number (`5G` → slide 5)
+Try it:
+
+```bash
+cp -r lessons/_template/my-lesson lessons/my-org/my-lesson
+# Edit the files, then:
+tryoutshell start my-org --lesson my-lesson
+```
 
 ---
 
 ## Getting Started
 
-Install TryOutShell and try presenting this file:
-
 ```bash
-go install github.com/tryoutshell/tryoutshell@latest
+git clone https://github.com/tryoutshell/tryoutshell.git
+cd tryoutshell
+go build -o tryoutshell .
 
-tryoutshell present docs/example-presentation.md
-```
+# Browse lessons
+./tryoutshell list
 
-Or pipe content from the web:
-
-```bash
-curl -s https://raw.githubusercontent.com/.../slides.md \
-  | tryoutshell present /dev/stdin
+# Present this file
+./tryoutshell present docs/example-presentation.md
 ```
 
 ---
 
-# Thank You! 🎉
+# Thank You!
 
 Explore the lessons:
 
 ```bash
-tryoutshell start
+tryoutshell list
 ```
 
 Read the docs, contribute a lesson, or write your own slides.

@@ -1,0 +1,29 @@
+id: github-actions
+title: "GitHub Actions: CI/CD from Zero to Hero"
+description: "Build, test, and deploy your code with GitHub Actions workflows, matrix builds, caching, and secrets"
+author: "TryOutShell"
+tags: ["cicd", "github-actions", "devops", "automation"]
+difficulty: "beginner"
+duration: "25 min"
+version: "1.0"
+quiz:
+  - question: "What file path must GitHub Actions workflow files be placed in?"
+    options: [".github/actions/", ".github/workflows/", ".ci/workflows/", "workflows/"]
+    answer: 1
+    explain: "GitHub Actions workflow files must be YAML files inside the .github/workflows/ directory of your repository."
+  - question: "Which event trigger runs a workflow on a pull request to the main branch?"
+    options: ["on: push", "on: pull_request", "on: merge", "on: commit"]
+    answer: 1
+    explain: "The pull_request event triggers when a PR is opened, synchronized, or reopened. You can filter by branch with 'branches: [main]'."
+  - question: "What is a 'runner' in GitHub Actions?"
+    options: ["A Docker container", "A virtual machine that executes your workflow jobs", "A GitHub bot", "A deployment target"]
+    answer: 1
+    explain: "A runner is a server (VM) with the GitHub Actions runner application installed. GitHub provides hosted runners (Ubuntu, Windows, macOS) or you can self-host."
+  - question: "How do you store sensitive values like API keys in GitHub Actions?"
+    options: ["Hardcode them in the YAML", "Use repository Secrets", "Put them in a .env file", "Use git-crypt"]
+    answer: 1
+    explain: "Repository Secrets are encrypted environment variables. Access them via ${{ secrets.MY_SECRET }} in workflows. They are never exposed in logs."
+  - question: "What does a matrix strategy do?"
+    options: ["Runs jobs sequentially on one OS", "Runs the same job across multiple configurations in parallel", "Creates a build artifact matrix", "Encrypts the build output"]
+    answer: 1
+    explain: "Matrix strategy generates multiple job runs from a combination of variables (e.g., OS versions, language versions), running them in parallel."

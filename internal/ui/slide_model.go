@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tryoutshell/tryoutshell/types"
 )
 
 // ──────────────────────────────────────────────
@@ -89,11 +90,15 @@ type SlideModel struct {
 	searchInput  textinput.Model
 	searchQuery  string
 	searchResult int // index of matching slide (-1 = none)
-	// "g" was pressed once – next "g" goes to first slide
-	gPressed bool
-	// number prefix accumulator (e.g. "5G" = go to slide 5)
-	numBuf string
-	styles *Styles
+	gPressed     bool
+	numBuf       string
+	styles       *Styles
+
+	lessonTitle string
+	orgID       string
+	lessonID    string
+	quiz        []types.QuizQuestion
+	showHelp    bool
 }
 
 // NewSlideModel creates a new SlideModel from a slice of parsed slides.
@@ -177,6 +182,10 @@ func (m SlideModel) updatePresent(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, slideKeys.Quit):
 		return m, tea.Quit
+
+	case k == "?":
+		m.showHelp = !m.showHelp
+		return m, nil
 
 	case k == "g":
 		if m.gPressed {
@@ -344,12 +353,54 @@ func (m SlideModel) View() string {
 		return m.styles.ErrorMsg.Render("\n  No slides found in file. Make sure slides are separated by '---'.\n")
 	}
 
+	if m.showHelp {
+		return m.renderHelpOverlay()
+	}
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		m.renderSlideHeader(),
 		m.viewport.View(),
 		m.renderSlideFooter(),
 	)
+}
+
+func (m SlideModel) renderHelpOverlay() string {
+	helpStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62")).
+		Padding(1, 3).
+		Width(m.width - 4).
+		Align(lipgloss.Left)
+
+	help := `Keybindings
+
+  Navigation
+  ──────────────────────────
+  space / → / ↓ / enter    Next slide
+  ← / ↑ / p / h / k        Previous slide
+  gg                        First slide
+  G                         Last slide
+  <number> G                Jump to slide
+
+  Scrolling
+  ──────────────────────────
+  ctrl+u                    Scroll up
+  ctrl+d                    Scroll down
+
+  Search
+  ──────────────────────────
+  /                         Search slides
+  ctrl+n                    Next result
+
+  Other
+  ──────────────────────────
+  ?                         Toggle this help
+  q / ctrl+c                Quit
+
+  Press any key to dismiss`
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, helpStyle.Render(help))
 }
 
 // parseNum parses a numeric string to int; returns 1 on failure.
@@ -382,6 +433,9 @@ func (m SlideModel) renderSlideHeader() string {
 		Align(lipgloss.Right)
 
 	title := "TryOutShell Slides"
+	if m.lessonTitle != "" {
+		title = m.lessonTitle
+	}
 	if m.total > 0 && m.slides[m.current].Title != "" {
 		title = m.slides[m.current].Title
 	}

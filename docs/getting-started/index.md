@@ -4,155 +4,124 @@ sidebar_position: 1
 
 # Getting Started
 
-Learn how to install TryOutShell and create your first interactive lesson.
+Install TryOutShell and run your first lesson in under 2 minutes.
 
 ## Installation
 
-### Quick Install (Recommended)
-```bash
-curl -sSL https://tryoutshell.lol | sh
-```
+### Build from Source (Recommended)
 
-This script will:
-1. Download the latest `tryoutshell` binary from GitHub Releases
-2. Verify the SHA256 checksum for security
-3. Install the binary to `/usr/local/bin` (or `~/.local/bin`)
-4. Clone the default lesson repository to `~/.tryoutshell/lessons/`
-5. Add `tryoutshell` to your `$PATH`
+**Requirements:** Go 1.24 or later.
 
-### Alternative Installation Methods
-
-#### Via Homebrew (macOS/Linux)
 ```bash
-brew tap your-org/tryoutshell
-brew install tryoutshell
-```
-
-#### Via GitHub Releases (Manual)
-
-1. Download the latest release for your platform from [GitHub Releases](https://github.com/your-org/tryoutshell/releases)
-2. Extract the archive:
-```bash
-   tar -xzf tryoutshell-linux-amd64.tar.gz
-```
-3. Move the binary to your PATH:
-```bash
-   sudo mv tryoutshell /usr/local/bin/
-```
-4. Make it executable:
-```bash
-   chmod +x /usr/local/bin/tryoutshell
-```
-
-#### Build from Source
-```bash
-git clone https://github.com/your-org/tryoutshell.git
+git clone https://github.com/tryoutshell/tryoutshell.git
 cd tryoutshell
-go build -o tryoutshell ./cmd/tryoutshell
+go build -o tryoutshell .
 sudo mv tryoutshell /usr/local/bin/
 ```
 
-## Verify Installation
+### Via Go Install
 
-Check that TryOutShell is installed correctly:
 ```bash
-tryoutshell version
+go install github.com/tryoutshell/tryoutshell@latest
 ```
 
-You should see output like:
-TryOutShell v1.0.0
-Built with Go 1.21.0
+### Via Homebrew (Coming Soon)
+
+```bash
+brew install tryoutshell/tap/tryoutshell
+```
+
+### Binary Download
+
+Download pre-built binaries from [GitHub Releases](https://github.com/tryoutshell/tryoutshell/releases).
+
+## Verify Installation
+
+```bash
+tryoutshell --help
+```
+
+You should see the help output listing all available commands.
 
 ## Your First Lesson
 
-Let's run a simple lesson to see TryOutShell in action:
+### Browse available lessons
+
 ```bash
-tryoutshell start hello-world
+tryoutshell list
 ```
 
-This will launch an interactive lesson that guides you through basic commands.
+This opens an interactive picker. Select an organization, then a lesson.
+
+### Start a specific lesson
+
+```bash
+tryoutshell start docker --lesson docker-101
+```
+
+### Take a quiz
+
+```bash
+tryoutshell quiz docker docker-101
+```
+
+### Check your progress
+
+```bash
+tryoutshell progress
+```
+
+## All Commands
+
+| Command | Description |
+|---------|-------------|
+| `tryoutshell list` | Browse organizations and lessons interactively |
+| `tryoutshell start [org]` | Start a learning session (optionally specify org) |
+| `tryoutshell start [org] -l [lesson]` | Start a specific lesson directly |
+| `tryoutshell quiz <org> <lesson>` | Launch quiz mode for a lesson |
+| `tryoutshell read <url>` | Read a blog post in split-pane TUI with AI chat |
+| `tryoutshell read <url> --save` | Save article for offline reading |
+| `tryoutshell saved` | Open saved articles |
+| `tryoutshell progress` | Show learning progress summary |
+| `tryoutshell present <file.md>` | Present any markdown file as slides |
+| `tryoutshell update` | Download new/updated lessons |
+| `tryoutshell update --check` | Check for updates without downloading |
+| `tryoutshell completion [bash\|zsh\|fish]` | Generate shell completions |
+
+## Shell Completions
+
+```bash
+# Bash
+source <(tryoutshell completion bash)
+
+# Zsh
+source <(tryoutshell completion zsh)
+
+# Fish
+tryoutshell completion fish | source
+```
+
+## Directory Layout
+
+Lessons are stored in the repo under `lessons/`:
+
+```
+lessons/
+  <org-id>/
+    meta.yaml           ← organization metadata (name, logo)
+    <lesson-id>/
+      lesson.yaml       ← lesson metadata + quiz questions
+      slides.md         ← slide content (--- separated)
+      exercises.sh      ← optional exercises
+    legacy-lesson.yaml  ← interactive lesson (old format, still works)
+```
+
+Progress is stored at `~/.config/tryoutshell/progress.json`.
+
+Saved articles are at `~/.local/share/tryoutshell/saved/`.
 
 ## What's Next?
 
-- 📝 [Create a Minimal Lesson](./minimal-example) - Build your first lesson
-- 📚 [Understand Lesson Structure](./lesson-structure) - Learn the anatomy of a lesson
-- 🎯 [Browse Examples](../examples/) - See complete lesson examples
-
-## Directory Structure
-
-After installation, TryOutShell creates the following structure:
-~/.tryoutshell/
-├── lessons/              # Lesson repository
-│   ├── docker-basics/
-│   ├── cosign-intro/
-│   └── ...
-├── config.yaml           # User configuration
-├── progress.db           # Lesson progress tracking
-└── cache/                # Cached data
-
-## Configuration
-
-Edit `~/.tryoutshell/config.yaml` to customize TryOutShell:
-```yaml
-# Default lesson repository
-lesson_repo: "https://github.com/your-org/tryoutshell-lessons.git"
-
-# UI preferences
-theme: "dark"  # Options: dark, light
-animations: true
-
-# Telemetry (optional, anonymized)
-telemetry_enabled: false
-```
-
-## Updating TryOutShell
-
-To update to the latest version:
-```bash
-tryoutshell update
-```
-
-Or reinstall via the installation script:
-```bash
-curl -sSL https://tryoutshell.lol | sh
-```
-
-## Troubleshooting
-
-### Command not found
-
-If you see `tryoutshell: command not found`, ensure it's in your PATH:
-```bash
-export PATH="$PATH:/usr/local/bin"
-```
-
-Add this to your `~/.bashrc` or `~/.zshrc` to make it permanent.
-
-### Permission denied
-
-If you get permission errors during installation:
-```bash
-sudo curl -sSL https://tryoutshell.lol | sh
-```
-
-Or install to a user directory:
-```bash
-mkdir -p ~/.local/bin
-# Download and place binary in ~/.local/bin
-export PATH="$PATH:~/.local/bin"
-```
-
-### Lessons not loading
-
-Ensure the lesson repository is cloned:
-```bash
-git clone https://github.com/your-org/tryoutshell-lessons.git ~/.tryoutshell/lessons
-```
-
-## Support
-
-Need help? Check out:
-
-- 📖 [Documentation](/)
-- 🐛 [GitHub Issues](https://github.com/your-org/tryoutshell/issues)
-- 💬 [Discord Community](https://discord.gg/tryoutshell)
+- [Creating a Lesson](./creating-lessons) — Add a lesson with just YAML + Markdown
+- [Lesson Structure](./lesson-structure) — Understand the anatomy of interactive lessons
+- [Step Types](../step-types/) — Deep dive into each step type

@@ -1,0 +1,49 @@
+id: git-internals
+title: "Git Internals: How Git Really Works"
+description: "Understand Git under the hood - objects, refs, the staging index, and how commits are actually built"
+author: "TryOutShell"
+tags: ["git", "version-control", "internals", "devtools"]
+difficulty: "intermediate"
+duration: "30 min"
+version: "1.0"
+quiz:
+  - question: "What are the four types of objects in Git's object database?"
+    options:
+      - "files, folders, commits, branches"
+      - "blobs, trees, commits, tags"
+      - "snapshots, diffs, patches, refs"
+      - "add, commit, push, pull"
+    answer: 1
+    explain: "Git stores four object types: blobs (file content), trees (directory listings), commits (snapshots with metadata), and annotated tags."
+  - question: "What does 'git add' actually do internally?"
+    options:
+      - "Copies the file to the remote repository"
+      - "Creates a blob object and updates the staging index"
+      - "Creates a commit with the file changes"
+      - "Moves the HEAD pointer to the new file"
+    answer: 1
+    explain: "git add hashes the file content, stores it as a blob object in .git/objects, and updates .git/index (the staging area) with the new blob reference."
+  - question: "What is a branch in Git, internally?"
+    options:
+      - "A copy of the entire repository"
+      - "A separate directory on disk"
+      - "A pointer (reference) to a specific commit SHA"
+      - "A diff between two commits"
+    answer: 2
+    explain: "A branch is simply a file in .git/refs/heads/ containing the 40-character SHA-1 hash of the commit it points to. Creating a branch is just writing 40 bytes to a file."
+  - question: "What happens when you're in a 'detached HEAD' state?"
+    options:
+      - "The repository is corrupted"
+      - "HEAD points directly to a commit instead of a branch reference"
+      - "You cannot make any commits"
+      - "The .git directory has been removed"
+    answer: 1
+    explain: "Detached HEAD means HEAD contains a raw commit SHA instead of a symbolic reference to a branch. You can make commits, but they won't be on any branch and may be garbage collected."
+  - question: "What does the reflog track?"
+    options:
+      - "Remote repository changes"
+      - "File permissions changes"
+      - "Every movement of HEAD and branch tips in your local repository"
+      - "Only merge conflicts"
+    answer: 2
+    explain: "The reflog records every time HEAD or a branch tip moves — commits, checkouts, rebases, resets. It's your safety net for recovering lost commits."

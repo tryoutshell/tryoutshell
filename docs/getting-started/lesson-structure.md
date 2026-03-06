@@ -1,100 +1,117 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 ---
 
-# Lesson Structure
+# Interactive Lesson Structure
 
-Every TryOutShell lesson follows a consistent YAML structure with four main sections.
+Interactive lessons use the legacy single-file YAML format with step-by-step command execution and validation. This is more powerful than data-only lessons but requires more effort to write.
 
 ## Overview
+
 ```yaml
-metadata:        # Required - Lesson identification and metadata
-introduction:    # Optional - Shown once at the start
-steps:           # Required - Main lesson content
-conclusion:      # Optional - Shown after completion
+metadata:        # Required — lesson identification
+introduction:    # Optional — shown once at start
+steps:           # Required — interactive step sequence
+conclusion:      # Optional — shown after completion
 ```
 
 ## The Four Sections
 
 ### 1. Metadata (Required)
 
-Defines who created the lesson, what it teaches, and how to find it.
 ```yaml
 metadata:
-  id: "my-lesson"
-  org: "my-org"
-  title: "My Lesson"
-  description: "What this lesson teaches"
+  id: "cosign-sign-verify"
+  org: "sigstore"
+  title: "Container Image Signing with Cosign"
+  description: "Learn to sign and verify container images"
   difficulty: "beginner"
-  duration: "15 min"
-  tags: ["docker", "containers"]
+  duration: "20 min"
+  prerequisites:
+    - "Docker installed"
+  tags: ["cosign", "signing", "supply-chain"]
+  author: "TryOutShell"
+  version: "1.0"
+  resources:
+    - title: "Cosign Docs"
+      url: "https://docs.sigstore.dev"
+      type: "docs"
 ```
 
-[→ See all metadata fields](../metadata/)
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier (kebab-case) |
+| `org` | Yes | Organization/topic ID |
+| `title` | Yes | Human-readable title |
+| `description` | Yes | Brief summary |
+| `difficulty` | Yes | `beginner`, `intermediate`, or `advanced` |
+| `duration` | Yes | Estimated time |
+| `tags` | Yes | Searchable keywords |
+| `prerequisites` | No | Required tools or knowledge |
+| `author` | No | Creator name |
+| `version` | No | Lesson version |
+| `resources` | No | External links |
 
 ### 2. Introduction (Optional)
 
-Sets context before the lesson begins. Shows once when the lesson starts.
+Sets expectations before the lesson begins.
+
 ```yaml
 introduction:
   title: "What You'll Learn"
   content: |
     In this lesson, you will:
-    - Install and verify a tool
-    - Run basic commands
-    - Complete a hands-on challenge
+    - Understand what Cosign is
+    - Install and verify Cosign
+    - Sign and verify container images
+
+    **Time:** ~20 minutes
+    **Tools:** Cosign, Docker
 ```
 
-[→ Learn more about introductions](../sections/introduction)
+Supports full Markdown: bold, italic, code, lists, blockquotes, headers.
 
 ### 3. Steps (Required)
 
-The core of the lesson. A sequence of interactive steps the user completes.
-```yaml
-steps:
-  - type: info
-    title: "Welcome"
-    content: "Let's get started!"
+The interactive core. Each step has a `type` that determines its behavior.
 
-  - type: command
-    prompt: "Run a command"
-    example: "docker --version"
-    validation:
-      type: "substring"
-      contains: "Docker version"
-    success_msg: "✅ Great!"
-    fail_msg: "❌ Try again"
-```
+| Type | Purpose |
+|------|---------|
+| `info` | Display educational content |
+| `command` | Execute and validate shell commands |
+| `quiz` | Multiple-choice knowledge check |
+| `challenge` | Open-ended hands-on task |
+| `interview_prep` | Practice interview questions |
 
-[→ Explore all step types](../step-types/)
+See the [Step Types](../step-types/) reference for full details on each type.
 
 ### 4. Conclusion (Optional)
 
-Summarizes what was learned and suggests next steps.
+Summarizes learning and awards badges.
+
 ```yaml
 conclusion:
   title: "Congratulations!"
   content: |
-    You've completed the lesson!
+    You've learned:
+    - How to sign container images
+    - How to verify signatures
+    - Supply chain security basics
 
-    Next steps:
-    - Try the advanced lesson
-    - Explore the documentation
+    **Next:** Try the Keyless Signing lesson
+
   badges:
-    - id: "docker-basics"
-      name: "Docker Basics"
-      icon: "🐳"
+    - id: "cosign-basics"
+      name: "Cosign Fundamentals"
+      icon: "🔐"
 ```
-
-[→ Learn about conclusions](../sections/conclusion)
 
 ## Complete Example
 
-Here's a complete lesson structure:
 ```yaml
 metadata:
   id: "docker-intro"
-  org: "tutorial"
+  org: "docker"
   title: "Docker Introduction"
   description: "Learn basic Docker commands"
   difficulty: "beginner"
@@ -104,18 +121,14 @@ metadata:
 introduction:
   title: "Welcome to Docker"
   content: |
-    Docker lets you package applications in containers.
-
-    In this lesson, you'll learn:
-    - How to check Docker is installed
-    - How to run your first container
-    - Basic Docker commands
+    Docker packages applications in containers.
+    You'll learn to run your first container.
 
 steps:
   - type: info
     title: "What is Docker?"
     content: |
-      Docker is a platform for developing and running applications
+      **Docker** is a platform for running applications
       in lightweight, portable containers.
 
   - type: command
@@ -125,7 +138,7 @@ steps:
       type: "substring"
       contains: "Docker version"
     success_msg: "✅ Docker is installed!"
-    fail_msg: "❌ Docker not found. Please install it first."
+    fail_msg: "❌ Docker not found."
 
   - type: command
     prompt: "Run your first container"
@@ -133,104 +146,55 @@ steps:
     validation:
       type: "substring"
       contains: "Hello from Docker"
-    success_msg: "✅ Your first container ran successfully!"
+    success_msg: "✅ Container ran successfully!"
     fail_msg: "❌ Container failed to run"
+    hints:
+      - level: 1
+        text: "Try: docker run hello-world"
 
   - type: quiz
     title: "Quick Check"
     questions:
       - id: "q1"
-        question: "What command checks Docker version?"
+        question: "What does docker ps show?"
         type: "multiple_choice"
         options:
-          - "docker version"
-          - "docker --version"
-          - "Both are correct"
-        answer: 2
-        explanation: "Both commands work to check Docker version!"
+          - "All images"
+          - "Running containers"
+          - "Docker version"
+        answer: 1
+        explanation: "docker ps lists running containers."
 
 conclusion:
   title: "Well Done!"
   content: |
     🎉 You've learned Docker basics!
-
-    **What's next?**
-    - Explore the Docker CLI lesson
-    - Learn about Dockerfiles
-    - Build your own container
   badges:
     - id: "docker-beginner"
       name: "Docker Beginner"
       icon: "🐳"
 ```
 
-## Validation
+## File Location
 
-Before running your lesson, validate it:
-```bash
-tryoutshell validate my-lesson.yaml
+Interactive lessons are single YAML files placed at:
+
+```
+lessons/<org-id>/<lesson-id>.yaml
 ```
 
-This checks:
-- YAML syntax
-- Required fields are present
-- Field types are correct
-- Step types are valid
+They are auto-discovered alongside the newer directory-based format.
 
 ## Best Practices
 
-### Keep It Focused
+- **Keep it focused** — one main concept per lesson
+- **Start simple** — info steps first, then commands
+- **Progressive difficulty** — easy commands → complex tasks → challenges
+- **Test everything** — run `go run . start <org> --lesson <id>` end-to-end
+- **Provide hints** — 3 progressive hints per command step
+- **Include quizzes** — reinforce learning with 3-5 questions
 
-Each lesson should teach **one main concept**. Break complex topics into multiple lessons.
+## What's Next?
 
-✅ Good: "Docker Basics - Running Containers"
-❌ Too Broad: "Complete Docker and Kubernetes Guide"
-
-### Start Simple
-
-Begin with info steps to build context, then move to commands.
-```yaml
-steps:
-  - type: info        # Explain first
-    title: "What is X?"
-    content: "..."
-
-  - type: command     # Then practice
-    prompt: "Try it yourself"
-    example: "..."
-```
-
-### Progressive Difficulty
-
-Order steps from easy to challenging:
-
-1. Simple verification commands
-2. Basic operations
-3. More complex tasks
-4. Final challenge
-
-### Test Everything
-
-Always test your lesson end-to-end:
-```bash
-tryoutshell start my-lesson
-```
-
-Verify:
-- All commands work as expected
-- Validations catch correct/incorrect outputs
-- Success/failure messages are helpful
-- The flow makes sense
-
-## Next Steps
-
-Now that you understand the structure:
-
-- 📝 [Learn about Metadata](../metadata/) - All metadata fields explained
-- 🎯 [Explore Step Types](../step-types/) - Deep dive into each step type
-- 🔧 [Validation Methods](../guides/validation-types) - How to validate commands
-- 💡 [Best Practices](../guides/best-practices) - Tips for great lessons
-
----
-
-Ready to create your own lesson? Start with a [minimal example](./minimal-example)!
+- [Step Types Reference](../step-types/) — Deep dive into each step type
+- [Creating Data-Only Lessons](./creating-lessons) — The simpler lesson format

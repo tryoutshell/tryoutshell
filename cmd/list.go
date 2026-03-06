@@ -1,11 +1,10 @@
 package cmd
 
 import (
-	"encoding/json"
 	"log"
-	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/tryoutshell/tryoutshell/internal/lesson"
 	"github.com/tryoutshell/tryoutshell/internal/ui"
 	"github.com/tryoutshell/tryoutshell/types"
 )
@@ -14,15 +13,14 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Interactive list of organizations and lessons",
 	Run: func(cmd *cobra.Command, args []string) {
-		orgList := getOrganizationList()
+		allLessons := lesson.DiscoverLessons()
+		orgList := buildOrgList(allLessons)
 
-		// Show org selection
 		selectedOrg := selectOrganization(orgList)
 		if selectedOrg == "" {
 			return
 		}
 
-		// Get org details
 		var orgDetail types.OrganizationDetails
 		for _, org := range orgList {
 			if org.Id == selectedOrg {
@@ -31,13 +29,23 @@ var listCmd = &cobra.Command{
 			}
 		}
 
-		// Show lesson selection
 		selectedLesson := selectLesson(selectedOrg, orgDetail.Name, orgDetail.Lessons)
 		if selectedLesson == "" {
 			return
 		}
 
-		// Start the lesson
+		dl := lesson.FindLesson(allLessons, selectedOrg, selectedLesson)
+		if dl != nil && dl.HasSlides && !dl.HasLegacy {
+			slidesContent, err := lesson.LoadSlides(dl.Dir)
+			if err != nil {
+				log.Fatalf("Error loading slides: %v", err)
+			}
+			if err := ui.LaunchSlideLesson(dl, slidesContent); err != nil {
+				log.Fatalf("Error launching lesson: %v", err)
+			}
+			return
+		}
+
 		if err := ui.LaunchInteractive(selectedOrg, selectedLesson); err != nil {
 			log.Fatalf("Error launching lesson: %v", err)
 		}
@@ -48,16 +56,25 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 }
 
-func getOrganizationList() []types.OrganizationDetails {
-	filePath := "manifest.json"
-	fileContent, err := os.ReadFile(filePath)
-	if err != nil {
-		log.Fatalf("Error reading file: %v", err)
+func buildOrgList(allLessons []types.DiscoveredLesson) []types.OrganizationDetails {
+	groups := lesson.GroupByOrg(allLessons)
+	var orgList []types.OrganizationDetails
+
+	for orgID, lessons := range groups {
+		var lessonIDs []string
+		for _, l := range lessons {
+			lessonIDs = append(lessonIDs, l.LessonID)
+		}
+
+		meta := lessons[0].OrgMeta
+		orgList = append(orgList, types.OrganizationDetails{
+			Id:          orgID,
+			Name:        meta.Name,
+			Description: meta.Description,
+			Logo:        meta.Logo,
+			Lessons:     lessonIDs,
+		})
 	}
-	var orgStruct types.OrganizationList
-	err = json.Unmarshal(fileContent, &orgStruct)
-	if err != nil {
-		log.Fatalf("Error unmarshaling JSON: %v", err)
-	}
-	return orgStruct.Organizations
+
+	return orgList
 }

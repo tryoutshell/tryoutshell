@@ -4,121 +4,90 @@ sidebar_position: 6
 
 # Interview Prep Steps
 
-Interview prep steps help users practice explaining concepts in their own words.
+Interview prep steps provide open-ended questions for users to practice and reflect on concepts.
 
 ## Purpose
 
 Use interview prep steps to:
-- Encourage deeper thinking
-- Practice articulating knowledge
-- Prepare for technical interviews
-- Reinforce understanding
-- Identify knowledge gaps
+- Reinforce learning through reflection
+- Practice articulating technical concepts
+- Prepare for real interview scenarios
+- Encourage deeper understanding beyond commands
 
 ## Basic Structure
-`````yaml
+
+```yaml
 - type: interview_prep
-  title: "Think Deeper"
-  description: "Practice explaining these concepts"
+  title: "Interview Questions"
   questions:
-    - "Question 1?"
-    - "Question 2?"
-    - "Question 3?"
-  record_answers: true
-  export_format: "json"
-`````
+    - "Explain concept X in simple terms."
+    - "How would you implement Y in production?"
+```
 
 ## Fields Reference
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | `"interview_prep"` | Yes | Identifies this type |
-| `title` | string | Yes | Section header |
+| `title` | string | Yes | Section heading |
 | `description` | string | No | Instructions |
 | `questions` | list | Yes | List of question strings |
-| `record_answers` | boolean | No | Save answers? (default: false) |
-| `export_format` | enum | No | `"json"` or `"text"` (default: `"json"`) |
+| `record_answers` | boolean | No | Save user's answers (default: false) |
+| `export_format` | string | No | `"json"` or `"text"` (default: `"json"`) |
 
-## Simple Example
-`````yaml
+## Examples
+
+### Basic
+
+```yaml
 - type: interview_prep
-  title: "Explain What You Learned"
+  title: "Practice Questions"
   questions:
     - "What is Docker and why is it useful?"
-    - "Explain the difference between an image and a container"
-    - "When would you use Docker Compose?"
-`````
+    - "Explain the difference between images and containers."
+    - "When would you use Docker Compose vs Kubernetes?"
+```
 
-## Complete Examples
+### With Answer Recording
 
-### Example 1: Docker Concepts
-`````yaml
+```yaml
 - type: interview_prep
   title: "Interview Questions"
   description: |
-    Practice explaining these concepts as if you're in a technical interview.
-
-    Take your time and think through your answers. There's no "perfect" answer,
-    but try to be clear and thorough.
+    Practice these questions to reinforce your learning.
+    Your answers will be saved for review.
 
   questions:
-    - "Explain what Docker is to someone who has never heard of it"
-    - "What's the difference between a Docker image and a container?"
-    - "How do you troubleshoot a container that won't start?"
-    - "When would you use Docker Compose vs Kubernetes?"
-    - "What are some security best practices for containers?"
+    - "Explain how Cosign ensures container image integrity."
+    - "What's the difference between key-based and keyless signing?"
+    - "How would you integrate Cosign into a CI/CD pipeline?"
+    - "What are the security risks if you lose your private key?"
+    - "How does Cosign integrate with Kubernetes admission controllers?"
 
   record_answers: true
   export_format: "json"
-`````
+```
 
-### Example 2: Security Focus
-`````yaml
+### Security-Focused
+
+```yaml
 - type: interview_prep
-  title: "Security Interview Prep"
+  title: "Security Deep Dive"
   description: |
-    Security is critical in DevOps. Practice answering these questions:
+    Think about these scenarios from a security perspective.
+    Try to cover both the attack surface and mitigations.
 
   questions:
-    - "Explain how image signing improves supply chain security"
-    - "What's the difference between key-based and keyless signing?"
-    - "How would you integrate Cosign into a CI/CD pipeline?"
-    - "What are the security risks if a private key is compromised?"
-    - "How do you verify the authenticity of a third-party container image?"
+    - "How would you detect a compromised supply chain?"
+    - "What is the role of transparency logs in software security?"
+    - "Explain the principle of least privilege in container security."
+    - "How do you handle secret rotation in Kubernetes?"
+```
 
-  record_answers: true
-`````
+## Best Practices
 
-### Example 3: Troubleshooting Scenarios
-`````yaml
-- type: interview_prep
-  title: "Troubleshooting Scenarios"
-  description: |
-    Imagine you're in an interview and asked to solve these problems.
-    Explain your approach step-by-step.
-
-  questions:
-    - "A container keeps restarting. How do you diagnose the issue?"
-    - "Users can't access your deployed application. What do you check?"
-    - "A Docker build is failing. Walk through your debugging process"
-    - "An image verification fails. What could be the causes?"
-    - "Your Kubernetes pod is in 'CrashLoopBackOff'. What steps do you take?"
-
-  record_answers: true
-  export_format: "text"
-`````
-
-### Example 4: Architecture Decisions
-`````yaml
-- type: interview_prep
-  title: "Architecture & Design"
-  description: |
-    Practice explaining architectural decisions and trade-offs.
-
-  questions:
-    - "When would you choose containers over virtual machines?"
-    - "How do you decide between a monolith and microservices?"
-    - "Explain the trade-offs between Docker Swarm and Kubernetes"
-    - "How would you design a secure container build pipeline?"
-    - "- [Best Practices](../guides/best-practices) - Write better lessons
-`````
+- **5-8 questions** per prep step
+- **Start broad, go specific** — "What is X?" → "How would you implement X in scenario Y?"
+- **Mix question types** — concept explanations, scenarios, comparisons, troubleshooting
+- **Place at the end** — after the user has context from earlier steps
+- **Make questions realistic** — use scenarios they'd encounter in actual interviews

@@ -1,0 +1,37 @@
+id: k8s-101
+title: "Kubernetes 101: Container Orchestration Fundamentals"
+description: "Learn Kubernetes from scratch - pods, deployments, services, configmaps, and kubectl essentials"
+author: "TryOutShell"
+tags: ["kubernetes", "k8s", "containers", "orchestration", "devops"]
+difficulty: "beginner"
+duration: "30 min"
+version: "1.0"
+quiz:
+  - question: "What is the smallest deployable unit in Kubernetes?"
+    options: ["Container", "Pod", "Node", "Deployment"]
+    answer: 1
+    explain: "A Pod is the smallest deployable unit in Kubernetes. It wraps one or more containers that share networking and storage."
+  - question: "What does a Deployment controller do?"
+    options:
+      - "Routes external traffic to pods"
+      - "Stores configuration data"
+      - "Ensures the desired number of pod replicas are running and manages rollouts"
+      - "Provides persistent storage"
+    answer: 2
+    explain: "A Deployment manages ReplicaSets and ensures the desired number of pod replicas are running. It handles rolling updates and rollbacks."
+  - question: "Which Service type makes a pod accessible from outside the cluster?"
+    options: ["ClusterIP", "NodePort", "ExecPort", "InternalLB"]
+    answer: 1
+    explain: "NodePort exposes the service on a static port on each node's IP, making it accessible from outside the cluster. ClusterIP is internal only."
+  - question: "How do you pass non-sensitive configuration to a pod?"
+    options: ["Secret", "ConfigMap", "PersistentVolume", "Annotation"]
+    answer: 1
+    explain: "ConfigMaps store non-sensitive configuration data as key-value pairs. Secrets are for sensitive data like passwords and tokens."
+  - question: "What does 'kubectl apply -f deployment.yaml' do?"
+    options:
+      - "Deletes the resources defined in the file"
+      - "Only validates the YAML syntax"
+      - "Creates or updates resources to match the desired state in the file"
+      - "Exports the current cluster state to the file"
+    answer: 2
+    explain: "kubectl apply is declarative — it creates resources if they don't exist, or updates them to match the desired state defined in the YAML file."
