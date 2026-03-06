@@ -9,6 +9,31 @@ import (
 	lessons_pkg "github.com/tryoutshell/tryoutshell/internal/lessons"
 )
 
+// LaunchPresentation reads a markdown file, parses it into slides, and starts
+// the terminal-based slide presentation UI.
+func LaunchPresentation(filePath string) error {
+	raw, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file %q: %w", filePath, err)
+	}
+
+	slides := ParseSlides(string(raw))
+
+	m := NewSlideModel(slides)
+
+	p := tea.NewProgram(
+		m,
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
+
+	if _, err := p.Run(); err != nil {
+		return fmt.Errorf("error running presentation: %w", err)
+	}
+
+	return nil
+}
+
 // LaunchInteractive starts the Bubble Tea UI
 func LaunchInteractive(orgID, lessonID string) error {
 	// Load lesson data
