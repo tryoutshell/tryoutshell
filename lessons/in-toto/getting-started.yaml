@@ -425,7 +425,11 @@ steps:
       3. Record the cloned files as products
       4. Sign the attestation with Bob's key
 
-    example: "in-toto-run --step-name clone --key functionary_bob/bob --products demo-project/foo.py -- git clone https://github.com/in-toto/demo-project.git"
+    example: |
+      in-toto-run --step-name clone \
+                  --key functionary_bob/bob \
+                  --products demo-project/foo.py \
+                  -- git clone https://github.com/in-toto/demo-project.git
 
     accepted_commands:
       - "in-toto-run --step-name clone --key functionary_bob/bob --products demo-project/foo.py -- git clone https://github.com/in-toto/demo-project.git"
@@ -544,7 +548,7 @@ steps:
       - level: 1
         text: "Copy the example command carefully"
       - level: 2
-        text: "On macOS, you may need to use: sed -i '' instead of sed -i"
+        text: "On macOS, the 'sed -i' command needs an empty string as an extension: use sed -i '' 's/v0/v1/' demo-project/foo.py instead of sed -i 's/v0/v1/' demo-project/foo.py."
       - level: 3
         text: "The materials and products are both demo-project/foo.py since we're modifying in place"
 
@@ -820,7 +824,7 @@ steps:
       - level: 1
         text: "Modify foo.tar.gz with: echo 'malicious code' >> foo.tar.gz"
       - level: 2
-        text: "Run verification again and redirect output: in-toto-verify ... 2>&1 | tee tampering-detected.txt"
+        text: "Run verification again and redirect output: in-toto-verify --layout owner_alice/root.layout --layout-keys owner_alice/alice.pub 2>&1 | tee tampering-detected.txt"
       - level: 3
         text: |
           Full solution:
